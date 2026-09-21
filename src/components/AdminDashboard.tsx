@@ -20,6 +20,7 @@ import { Student, Teacher, StudentReportData, SchoolSettings } from '../types';
 import { getPredicate, getPredicateColor } from '../data/quranData';
 import { generateRapotPDF } from '../utils/pdfGenerator';
 import { StudentFormModal } from './StudentFormModal';
+import { TeacherFormModal } from './TeacherFormModal';
 import { GradeInputModal } from './GradeInputModal';
 import { RapotPreviewModal } from './RapotPreviewModal';
 import { BulkStudentImportModal } from './BulkStudentImportModal';
@@ -64,6 +65,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
+  const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
   const [gradingReport, setGradingReport] = useState<StudentReportData | null>(null);
   const [previewReport, setPreviewReport] = useState<StudentReportData | null>(null);
   const [simakanStudent, setSimakanStudent] = useState<Student | null>(null);
@@ -479,29 +482,90 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* TAB 3: KELOLA GURU */}
         {activeTab === 'guru' && (
           <div className="p-5 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-900">Daftar Guru Pengampu Tahsin & Tahfiz</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Daftar Guru Pengampu Tahsin & Tahfiz</h3>
+                <p className="text-[11px] text-slate-500">
+                  Kelola nama ustadz/ustadzah pembimbing, NIP, serta kelas binaan.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTeacherToEdit(null);
+                  setIsTeacherModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tambah Guru</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {teachers.map((t) => (
-                <div key={t.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold">
-                      {t.name.charAt(4) || 'U'}
+                <div key={t.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3 relative group hover:border-emerald-300 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                        {t.name.split(' ').find(w => !['Ustadz', 'Ustadzah', 'Ust.'].includes(w))?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs text-slate-900 leading-tight">{t.name}</h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">NIP: {t.nip}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900">{t.name}</h4>
-                      <p className="text-[11px] text-slate-500">NIP: {t.nip}</p>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTeacherToEdit(t);
+                          setIsTeacherModalOpen(true);
+                        }}
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
+                        title="Ubah Data Guru"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (teachers.length <= 1) {
+                            alert('Tidak dapat menghapus. Minimal harus ada 1 guru terdaftar.');
+                            return;
+                          }
+                          if (confirm(`Yakin ingin menghapus ${t.name}?`)) {
+                            onDeleteTeacher(t.id);
+                          }
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                        title="Hapus Guru"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="text-xs pt-2 border-t border-slate-200 flex justify-between text-slate-600">
-                    <span>Kelas Bimbingan:</span>
-                    <strong className="text-emerald-800">{t.assignedClasses.join(', ')}</strong>
-                  </div>
-                  <div className="text-xs flex justify-between text-slate-600">
-                    <span>Bidang:</span>
-                    <strong className="text-slate-800">{t.specialty}</strong>
+
+                  <div className="text-xs pt-2 border-t border-slate-200 space-y-1.5 text-slate-600">
+                    <div className="flex justify-between items-center">
+                      <span>Kelas Bimbingan:</span>
+                      <strong className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-bold text-[11px]">
+                        {t.assignedClasses.join(', ')}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Spesialisasi:</span>
+                      <strong className="text-slate-800">{t.specialty}</strong>
+                    </div>
+                    {t.phone && (
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span>WhatsApp:</span>
+                        <span className="text-slate-700 font-medium">{t.phone}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -667,6 +731,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         studentToEdit={studentToEdit}
         teachers={teachers}
         onSave={onSaveStudent}
+      />
+
+      {/* Teacher Form Modal */}
+      <TeacherFormModal
+        isOpen={isTeacherModalOpen}
+        onClose={() => setIsTeacherModalOpen(false)}
+        teacherToEdit={teacherToEdit}
+        onSave={onSaveTeacher}
       />
 
       {/* Bulk Student Import Modal */}
