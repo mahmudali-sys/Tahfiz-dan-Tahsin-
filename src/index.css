@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .printable-rapot {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+}

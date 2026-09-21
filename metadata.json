@@ -1,0 +1,6 @@
+{
+  "name": "SIA Tahsin & Tahfiz SMP Islam 9 Bekasi",
+  "description": "Sistem Informasi Akademik Tahsin & Tahfiz Al-Qur'an SMP Islam Al Azhar 9 Bekasi dengan menu khusus Pengolahan Nilai Excel, sinkronisasi multi-perangkat real-time (Laptop, iPad, HP), dan cetak Rapot resmi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
