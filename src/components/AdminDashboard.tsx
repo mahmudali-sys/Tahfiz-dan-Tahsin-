@@ -14,7 +14,10 @@ import {
   Save, 
   RotateCcw,
   FileSpreadsheet,
-  FileText
+  FileText,
+  CheckSquare,
+  Square,
+  Sparkles
 } from 'lucide-react';
 import { Student, Teacher, StudentReportData, SchoolSettings } from '../types';
 import { getPredicate, getPredicateColor } from '../data/quranData';
@@ -24,6 +27,7 @@ import { TeacherFormModal } from './TeacherFormModal';
 import { GradeInputModal } from './GradeInputModal';
 import { RapotPreviewModal } from './RapotPreviewModal';
 import { BulkStudentImportModal } from './BulkStudentImportModal';
+import { BulkTeacherImportModal } from './BulkTeacherImportModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { TahfizSurahRecord } from '../types';
 
@@ -35,8 +39,11 @@ interface AdminDashboardProps {
   onSaveStudent: (student: Student) => void;
   onImportStudents: (students: Student[], mode: 'append' | 'replace') => void;
   onDeleteStudent: (id: string) => void;
+  onBatchDeleteStudents: (studentIds: string[]) => void;
   onSaveTeacher: (teacher: Teacher) => void;
   onDeleteTeacher: (id: string) => void;
+  onImportTeachers: (teachers: Teacher[], mode: 'append' | 'replace') => void;
+  onBatchDeleteTeachers: (teacherIds: string[]) => void;
   onUpdateSettings: (newSettings: SchoolSettings) => void;
   onUpdateReport: (studentId: string, updatedReport: StudentReportData) => void;
   onResetData: () => void;
@@ -51,8 +58,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSaveStudent,
   onImportStudents,
   onDeleteStudent,
+  onBatchDeleteStudents,
   onSaveTeacher,
   onDeleteTeacher,
+  onImportTeachers,
+  onBatchDeleteTeachers,
   onUpdateSettings,
   onUpdateReport,
   onResetData,
@@ -66,10 +76,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [isBulkTeacherImportModalOpen, setIsBulkTeacherImportModalOpen] = useState(false);
   const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
   const [gradingReport, setGradingReport] = useState<StudentReportData | null>(null);
   const [previewReport, setPreviewReport] = useState<StudentReportData | null>(null);
   const [simakanStudent, setSimakanStudent] = useState<Student | null>(null);
+
+  // Multi-selection states
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
 
   const handleSaveSimakanResult = (newRecord: TahfizSurahRecord) => {
     if (!simakanStudent) return;
@@ -108,6 +123,73 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (selectedClassFilter === 'grade-9') return s.className.startsWith('9');
     return s.className === selectedClassFilter;
   });
+
+  // Student batch selection helpers
+  const isAllFilteredStudentsSelected =
+    filteredStudents.length > 0 &&
+    filteredStudents.every((s) => selectedStudentIds.includes(s.id));
+
+  const toggleSelectAllStudents = () => {
+    if (isAllFilteredStudentsSelected) {
+      const filteredIdSet = new Set(filteredStudents.map((s) => s.id));
+      setSelectedStudentIds((prev) => prev.filter((id) => !filteredIdSet.has(id)));
+    } else {
+      const filteredIdSet = new Set(filteredStudents.map((s) => s.id));
+      setSelectedStudentIds((prev) => Array.from(new Set([...prev, ...filteredIdSet])));
+    }
+  };
+
+  const toggleSelectStudent = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleExecuteBatchDeleteStudents = () => {
+    if (selectedStudentIds.length === 0) return;
+    if (
+      confirm(
+        `PERINGATAN ADMIN:\nYakin ingin menghapus ${selectedStudentIds.length} santri terpilih secara permanen?\nSeluruh data setoran dan rapot santri yang dihapus akan dibersihkan dari server.`
+      )
+    ) {
+      onBatchDeleteStudents(selectedStudentIds);
+      setSelectedStudentIds([]);
+    }
+  };
+
+  // Teacher batch selection helpers
+  const isAllTeachersSelected =
+    teachers.length > 0 && teachers.every((t) => selectedTeacherIds.includes(t.id));
+
+  const toggleSelectAllTeachers = () => {
+    if (isAllTeachersSelected) {
+      setSelectedTeacherIds([]);
+    } else {
+      setSelectedTeacherIds(teachers.map((t) => t.id));
+    }
+  };
+
+  const toggleSelectTeacher = (id: string) => {
+    setSelectedTeacherIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleExecuteBatchDeleteTeachers = () => {
+    if (selectedTeacherIds.length === 0) return;
+    if (selectedTeacherIds.length >= teachers.length) {
+      alert('Tidak dapat menghapus seluruh guru. Minimal harus ada 1 guru aktif di sistem.');
+      return;
+    }
+    if (
+      confirm(
+        `PERINGATAN ADMIN:\nYakin ingin menghapus ${selectedTeacherIds.length} guru terpilih?\nSantri yang sebelumnya dibina oleh guru yang dihapus akan dialihkan ke guru aktif lainnya.`
+      )
+    ) {
+      onBatchDeleteTeachers(selectedTeacherIds);
+      setSelectedTeacherIds([]);
+    }
+  };
 
   // Extract unique classes dynamically
   const uniqueClasses = Array.from(new Set(students.map((s) => s.className))).sort();
@@ -293,10 +375,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
+            {/* Batch Selection Banner for Students */}
+            {selectedStudentIds.length > 0 && (
+              <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-300 rounded-xl animate-in fade-in duration-150">
+                <div className="flex items-center gap-2">
+                  <span className="bg-emerald-800 text-white px-2.5 py-0.5 rounded-full font-bold text-xs">
+                    {selectedStudentIds.length} Santri Dipilih
+                  </span>
+                  <span className="text-xs text-slate-600 hidden sm:inline">
+                    Pilih aksi massal untuk santri yang ditandai:
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStudentIds([])}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    Batal Pilihan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteBatchDeleteStudents}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Hapus ({selectedStudentIds.length}) Santri Terpilih</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto border border-slate-200 rounded-xl">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50 text-slate-700 uppercase text-[11px]">
                   <tr>
+                    <th className="py-3 px-3 text-center w-10">
+                      <input
+                        type="checkbox"
+                        checked={isAllFilteredStudentsSelected}
+                        onChange={toggleSelectAllStudents}
+                        className="w-4 h-4 text-emerald-800 rounded border-slate-300 focus:ring-emerald-800 cursor-pointer"
+                        title="Pilih / Batalkan Semua Santri yang Ditampilkan"
+                      />
+                    </th>
                     <th className="py-3 px-4">Nama Murid</th>
                     <th className="py-3 px-4 text-center">NIS / NISN</th>
                     <th className="py-3 px-4 text-center">Kelas</th>
@@ -309,8 +431,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {filteredStudents.map((std) => {
                     const tch = teachers.find((t) => t.id === std.teacherId);
                     const rep = reports[std.id];
+                    const isSelected = selectedStudentIds.includes(std.id);
                     return (
-                      <tr key={std.id} className="hover:bg-slate-50">
+                      <tr 
+                        key={std.id} 
+                        className={`transition-colors ${isSelected ? 'bg-emerald-50/60' : 'hover:bg-slate-50'}`}
+                      >
+                        <td className="py-3 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectStudent(std.id)}
+                            className="w-4 h-4 text-emerald-800 rounded border-slate-300 focus:ring-emerald-800 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-3 px-4 font-bold text-slate-900">
                           {std.name}
                           <span className="block text-[10px] text-slate-400 font-normal">
@@ -486,89 +620,166 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Daftar Guru Pengampu Tahsin & Tahfiz</h3>
                 <p className="text-[11px] text-slate-500">
-                  Kelola nama ustadz/ustadzah pembimbing, NIP, serta kelas binaan.
+                  Kelola nama ustadz/ustadzah pembimbing, NIP, kelas binaan, serta tambah atau hapus data secara massal.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setTeacherToEdit(null);
-                  setIsTeacherModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Guru</span>
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkTeacherImportModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  title="Impor banyak guru sekaligus dari file Excel atau salin-tempel teks"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+                  <span>Impor Massal Guru</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeacherToEdit(null);
+                    setIsTeacherModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tambah Guru</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Batch Selection Banner for Teachers */}
+            {selectedTeacherIds.length > 0 && (
+              <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-300 rounded-xl animate-in fade-in duration-150">
+                <div className="flex items-center gap-2">
+                  <span className="bg-emerald-800 text-white px-2.5 py-0.5 rounded-full font-bold text-xs">
+                    {selectedTeacherIds.length} Guru Dipilih
+                  </span>
+                  <span className="text-xs text-slate-600 hidden sm:inline">
+                    Pilih aksi untuk guru yang ditandai:
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTeacherIds([])}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    Batal Pilihan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteBatchDeleteTeachers}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Hapus ({selectedTeacherIds.length}) Guru Terpilih</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Select All Teachers Bar */}
+            <div className="flex items-center justify-between px-1">
+              <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAllTeachersSelected}
+                  onChange={toggleSelectAllTeachers}
+                  className="w-4 h-4 text-emerald-800 rounded border-slate-300 focus:ring-emerald-800 cursor-pointer"
+                />
+                <span>Pilih Semua Guru ({teachers.length})</span>
+              </label>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {teachers.map((t) => (
-                <div key={t.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3 relative group hover:border-emerald-300 transition-colors">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                        {t.name.split(' ').find(w => !['Ustadz', 'Ustadzah', 'Ust.'].includes(w))?.charAt(0) || 'U'}
+              {teachers.map((t) => {
+                const isSelected = selectedTeacherIds.includes(t.id);
+                const assignedStudentsCount = students.filter((s) => s.teacherId === t.id).length;
+                return (
+                  <div 
+                    key={t.id} 
+                    className={`p-4 rounded-xl border transition-colors space-y-3 relative group ${
+                      isSelected 
+                        ? 'border-emerald-500 bg-emerald-50/50 shadow-xs' 
+                        : 'border-slate-200 bg-slate-50/50 hover:border-emerald-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectTeacher(t.id)}
+                          className="w-4 h-4 text-emerald-800 rounded border-slate-300 focus:ring-emerald-800 cursor-pointer"
+                        />
+                        <div className="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                          {t.name.split(' ').find(w => !['Ustadz', 'Ustadzah', 'Ust.'].includes(w))?.charAt(0) || 'U'}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-900 leading-tight">{t.name}</h4>
+                          <p className="text-[11px] text-slate-500 mt-0.5">NIP: {t.nip}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-900 leading-tight">{t.name}</h4>
-                        <p className="text-[11px] text-slate-500 mt-0.5">NIP: {t.nip}</p>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTeacherToEdit(t);
+                            setIsTeacherModalOpen(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
+                          title="Ubah Data Guru"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (teachers.length <= 1) {
+                              alert('Tidak dapat menghapus. Minimal harus ada 1 guru terdaftar.');
+                              return;
+                            }
+                            if (confirm(`Yakin ingin menghapus ${t.name}?`)) {
+                              onDeleteTeacher(t.id);
+                            }
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                          title="Hapus Guru"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTeacherToEdit(t);
-                          setIsTeacherModalOpen(true);
-                        }}
-                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors"
-                        title="Ubah Data Guru"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (teachers.length <= 1) {
-                            alert('Tidak dapat menghapus. Minimal harus ada 1 guru terdaftar.');
-                            return;
-                          }
-                          if (confirm(`Yakin ingin menghapus ${t.name}?`)) {
-                            onDeleteTeacher(t.id);
-                          }
-                        }}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                        title="Hapus Guru"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="text-xs pt-2 border-t border-slate-200 space-y-1.5 text-slate-600">
+                      <div className="flex justify-between items-center">
+                        <span>Kelas Bimbingan:</span>
+                        <strong className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-bold text-[11px]">
+                          {t.assignedClasses.join(', ')}
+                        </strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Spesialisasi:</span>
+                        <strong className="text-slate-800">{t.specialty}</strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Jumlah Santri Dibina:</span>
+                        <span className="font-bold text-emerald-800">{assignedStudentsCount} santri</span>
+                      </div>
+                      {t.phone && (
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span>WhatsApp:</span>
+                          <span className="text-slate-700 font-medium">{t.phone}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  <div className="text-xs pt-2 border-t border-slate-200 space-y-1.5 text-slate-600">
-                    <div className="flex justify-between items-center">
-                      <span>Kelas Bimbingan:</span>
-                      <strong className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-bold text-[11px]">
-                        {t.assignedClasses.join(', ')}
-                      </strong>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Spesialisasi:</span>
-                      <strong className="text-slate-800">{t.specialty}</strong>
-                    </div>
-                    {t.phone && (
-                      <div className="flex justify-between items-center text-[11px]">
-                        <span>WhatsApp:</span>
-                        <span className="text-slate-700 font-medium">{t.phone}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -748,6 +959,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         teachers={teachers}
         existingStudents={students}
         onImportStudents={onImportStudents}
+      />
+
+      {/* Bulk Teacher Import Modal */}
+      <BulkTeacherImportModal
+        isOpen={isBulkTeacherImportModalOpen}
+        onClose={() => setIsBulkTeacherImportModalOpen(false)}
+        existingTeachers={teachers}
+        onImportTeachers={onImportTeachers}
       />
 
       {/* Grade Input Modal for Admin */}

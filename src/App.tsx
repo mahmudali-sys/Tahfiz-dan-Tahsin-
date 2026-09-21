@@ -337,6 +337,84 @@ export default function App() {
     setIsSyncing(false);
   };
 
+  const handleBatchDeleteStudents = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    const updatedStudents = students.filter((s) => !idSet.has(s.id));
+    const updatedReports = { ...reports };
+    ids.forEach((id) => delete updatedReports[id]);
+
+    setStudents(updatedStudents);
+    setReports(updatedReports);
+
+    if (idSet.has(currentStudentId) && updatedStudents.length > 0) {
+      setCurrentStudentId(updatedStudents[0].id);
+    }
+
+    setIsSyncing(true);
+    const res = await pushFullSyncData({ students: updatedStudents, reports: updatedReports });
+    if (res.version) setServerVersion(res.version);
+    setLastSyncTime(new Date());
+    setIsSyncing(false);
+  };
+
+  const handleImportTeachers = async (newTeachers: Teacher[], mode: 'append' | 'replace') => {
+    let updatedTeachers: Teacher[];
+    if (mode === 'replace') {
+      updatedTeachers = newTeachers.length > 0 ? newTeachers : teachers;
+    } else {
+      const existingNips = new Set(teachers.map((t) => t.nip));
+      const existingNames = new Set(teachers.map((t) => t.name.toLowerCase()));
+      const filteredNew = newTeachers.filter(
+        (t) => !existingNips.has(t.nip) && !existingNames.has(t.name.toLowerCase())
+      );
+      updatedTeachers = [...teachers, ...filteredNew];
+    }
+
+    setTeachers(updatedTeachers);
+    if (updatedTeachers.length > 0 && !updatedTeachers.some((t) => t.id === currentTeacherId)) {
+      setCurrentTeacherId(updatedTeachers[0].id);
+    }
+
+    setIsSyncing(true);
+    const res = await pushFullSyncData({ teachers: updatedTeachers });
+    if (res.version) setServerVersion(res.version);
+    setLastSyncTime(new Date());
+    setIsSyncing(false);
+  };
+
+  const handleBatchDeleteTeachers = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    const remainingTeachers = teachers.filter((t) => !idSet.has(t.id));
+
+    if (remainingTeachers.length === 0) {
+      alert('Tidak dapat menghapus semua guru. Minimal harus ada 1 guru aktif di sistem.');
+      return;
+    }
+
+    const fallbackTeacherId = remainingTeachers[0].id;
+    // Reassign students whose teacher was deleted
+    const updatedStudents = students.map((s) => {
+      if (idSet.has(s.teacherId)) {
+        return { ...s, teacherId: fallbackTeacherId };
+      }
+      return s;
+    });
+
+    setTeachers(remainingTeachers);
+    setStudents(updatedStudents);
+    if (idSet.has(currentTeacherId)) {
+      setCurrentTeacherId(fallbackTeacherId);
+    }
+
+    setIsSyncing(true);
+    const res = await pushFullSyncData({ teachers: remainingTeachers, students: updatedStudents });
+    if (res.version) setServerVersion(res.version);
+    setLastSyncTime(new Date());
+    setIsSyncing(false);
+  };
+
   const handleSaveTeacher = async (teacher: Teacher) => {
     const exists = teachers.some((t) => t.id === teacher.id);
     let updatedTeachers: Teacher[];
@@ -594,6 +672,9 @@ export default function App() {
                 onDeleteStudent={handleDeleteStudent}
                 onSaveTeacher={handleSaveTeacher}
                 onDeleteTeacher={handleDeleteTeacher}
+                onImportTeachers={handleImportTeachers}
+                onBatchDeleteStudents={handleBatchDeleteStudents}
+                onBatchDeleteTeachers={handleBatchDeleteTeachers}
                 onUpdateSettings={handleUpdateSettings}
                 onUpdateReport={handleUpdateReport}
                 onResetData={handleResetData}
