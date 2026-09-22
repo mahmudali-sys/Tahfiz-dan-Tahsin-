@@ -17,7 +17,8 @@ import {
   FileText,
   CheckSquare,
   Square,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 import { Student, Teacher, StudentReportData, SchoolSettings } from '../types';
 import { getPredicate, getPredicateColor } from '../data/quranData';
@@ -31,6 +32,7 @@ import { BulkTeacherImportModal } from './BulkTeacherImportModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { TahfizSurahRecord } from '../types';
 import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
+import { ALL_168_STUDENTS, STUDENTS_9C_20 } from '../data/smpia9Students168';
 
 interface AdminDashboardProps {
   students: Student[];
@@ -49,6 +51,8 @@ interface AdminDashboardProps {
   onUpdateReport: (studentId: string, updatedReport: StudentReportData) => void;
   onResetData: () => void;
   onOpenProcessingMenu?: (className?: string) => void;
+  onLoadOfficial168Roster?: () => void;
+  onAppend9CStudents?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -68,6 +72,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateReport,
   onResetData,
   onOpenProcessingMenu,
+  onLoadOfficial168Roster,
+  onAppend9CStudents,
 }) => {
   const [activeTab, setActiveTab] = useState<'murid' | 'guru' | 'sekolah' | 'rekap'>('murid');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
@@ -219,11 +225,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Users className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-2">
-            {students.length} <span className="text-xs text-slate-400 font-normal">Santri</span>
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-2 flex items-baseline gap-1.5">
+            <span>{students.length}</span>
+            <span className="text-xs text-slate-500 font-normal">
+              {students.length === 168 ? '/ 168 Santri' : 'Santri'}
+            </span>
           </div>
           <div className="text-[11px] text-emerald-700 font-medium mt-1">
-            Kelas 7, 8, dan 9 SMP
+            {students.length === 168 ? (
+              <span className="inline-flex items-center gap-1 text-emerald-800 font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 inline" />
+                Lengkap 9 Rombel (7A–9C)
+              </span>
+            ) : students.length === 148 ? (
+              <span className="text-amber-700 font-semibold">
+                8 Rombel (9C +20 santri belum masuk)
+              </span>
+            ) : (
+              <span>Kelas 7, 8, dan 9 SMP</span>
+            )}
           </div>
         </div>
 
@@ -326,6 +346,78 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* TAB 1: KELOLA MURID */}
         {activeTab === 'murid' && (
           <div className="p-5 space-y-4">
+            {/* Banner Sinkronisasi 168 Santri SMPIA 9 */}
+            {students.length !== 168 ? (
+              <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-amber-100 text-amber-800 rounded-xl shrink-0 mt-0.5">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs sm:text-sm font-bold text-amber-950">
+                        Status Data Rombel: Terdata {students.length} Santri (Seharusnya 168 Santri)
+                      </h4>
+                      <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded text-[10px] font-bold">
+                        {students.length === 148 ? '8 Rombel (Kurang 9C)' : 'Perlu Sinkronisasi'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                      {students.length === 148
+                        ? 'Jumlah santri saat ini 148 orang dari 8 kelas (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B). Rombel 9C sebanyak 20 santri belum masuk sehingga total belum mencapai 168 santri.'
+                        : `Total santri resmi SMP Islam Al Azhar 9 adalah 168 santri pada 9 rombel resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C).`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-auto">
+                  {onAppend9CStudents && (
+                    <button
+                      type="button"
+                      onClick={onAppend9CStudents}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-all"
+                      title="Tambahkan 20 santri kelas 9C agar total genap 168 santri"
+                    >
+                      <Plus className="w-4 h-4 text-emerald-300" />
+                      <span>+ Masukkan 20 Santri 9C (Total Jadi 168)</span>
+                    </button>
+                  )}
+                  {onLoadOfficial168Roster && (
+                    <button
+                      type="button"
+                      onClick={onLoadOfficial168Roster}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-all"
+                      title="Muat ulang seluruh 168 data santri resmi SMPIA 9"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-200" />
+                      <span>Muat Lengkap 168 Santri (9 Rombel)</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-900">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>
+                    <strong>Roster Lengkap Terverifikasi:</strong> Total <strong>168 Santri</strong> pada 9 Rombel Resmi SMP Islam Al Azhar 9 Bekasi (7A–7C, 8A–8C, 9A–9C).
+                  </span>
+                </div>
+                {onLoadOfficial168Roster && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Muat ulang seluruh 168 roster baku resmi SMPIA 9 Bekasi?')) {
+                        onLoadOfficial168Roster();
+                      }
+                    }}
+                    className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline cursor-pointer self-end sm:self-auto"
+                  >
+                    Sinkron Ulang Master 168
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs font-semibold text-slate-600">Filter Rombel:</label>

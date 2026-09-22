@@ -43,7 +43,25 @@ export default function App() {
 
   const [students, setStudents] = useState<Student[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+    if (!saved) return INITIAL_STUDENTS;
+    try {
+      const parsed: Student[] = JSON.parse(saved);
+      const count9C = parsed.filter((s) => s.className === '9C').length;
+      if (count9C < 20 || parsed.length < 168) {
+        const existingMap = new Map(parsed.map((s) => [s.id, s]));
+        const merged = [...parsed];
+        INITIAL_STUDENTS.forEach((s) => {
+          if (!existingMap.has(s.id)) {
+            merged.push(s);
+          }
+        });
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(merged));
+        return merged;
+      }
+      return parsed;
+    } catch {
+      return INITIAL_STUDENTS;
+    }
   });
 
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
@@ -53,7 +71,12 @@ export default function App() {
 
   const [reports, setReports] = useState<Record<string, StudentReportData>>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.REPORTS);
-    return saved ? JSON.parse(saved) : INITIAL_REPORTS;
+    try {
+      const existing = saved ? JSON.parse(saved) : {};
+      return { ...INITIAL_REPORTS, ...existing };
+    } catch {
+      return INITIAL_REPORTS;
+    }
   });
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {

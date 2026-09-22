@@ -1,6 +1,9 @@
 import { SchoolSettings, Student, Teacher, StudentReportData } from '../types';
 import { createDefaultTahsinGrade } from './iqroData';
 import { STUDENTS_7B, create7BReports } from './class7BData';
+import { ALL_168_STUDENTS, STUDENTS_9C_20 } from './smpia9Students168';
+
+export { ALL_168_STUDENTS, STUDENTS_9C_20 };
 
 export const INITIAL_SCHOOL_SETTINGS: SchoolSettings = {
   schoolName: "SMP ISLAM AL AZHAR 9 BEKASI",
@@ -50,165 +53,7 @@ export const INITIAL_TEACHERS: Teacher[] = [
   },
 ];
 
-export const INITIAL_STUDENTS: Student[] = [
-  {
-    id: "std-emiral",
-    nis: "4309-2324011",
-    nisn: "0098430923",
-    name: "Emiral Abqaryandaru Bramantyo",
-    gender: "L",
-    className: "9A",
-    teacherId: "tch-3",
-    targetJuz: "Juz 30, 29 & 28",
-    targetSurahCount: 57,
-    parentPhone: "0812-9988-7766",
-  },
-  {
-    id: "std-1",
-    nis: "242507001",
-    nisn: "0112894001",
-    name: "Muhammad Fatih Al-Ayyubi",
-    gender: "L",
-    className: "7A",
-    teacherId: "tch-1",
-    targetJuz: "Juz 30 (Tuntas Mutqin)",
-    targetSurahCount: 37,
-    parentPhone: "0812-1002-3344",
-  },
-  {
-    id: "std-2",
-    nis: "242507002",
-    nisn: "0112894002",
-    name: "Aisyah Humaira Putri",
-    gender: "P",
-    className: "7A",
-    teacherId: "tch-1",
-    targetJuz: "Juz 30 (Tuntas Mutqin)",
-    targetSurahCount: 37,
-    parentPhone: "0813-8899-4411",
-  },
-  {
-    id: "std-3",
-    nis: "242507015",
-    nisn: "0112894015",
-    name: "Rizky Ramadhan Saputra",
-    gender: "L",
-    className: "7B",
-    teacherId: "tch-1",
-    targetJuz: "Juz 30 (Tuntas Mutqin)",
-    targetSurahCount: 37,
-    parentPhone: "0857-1234-5678",
-  },
-  {
-    id: "std-7c-1",
-    nis: "242507080",
-    nisn: "0112894080",
-    name: "Ahmad Rayyan Al-Ghifari",
-    gender: "L",
-    className: "7C",
-    teacherId: "tch-1",
-    targetJuz: "Juz 30 (Tuntas Mutqin)",
-    targetSurahCount: 37,
-    parentPhone: "0812-3344-5588",
-  },
-  {
-    id: "std-7c-2",
-    nis: "242507081",
-    nisn: "0112894081",
-    name: "Safiyya Maryam Salsabila",
-    gender: "P",
-    className: "7C",
-    teacherId: "tch-1",
-    targetJuz: "Juz 30 (Tuntas Mutqin)",
-    targetSurahCount: 37,
-    parentPhone: "0813-5566-7799",
-  },
-  {
-    id: "std-4",
-    nis: "232408003",
-    nisn: "0103456003",
-    name: "Ibrahim Hanif Al-Farisi",
-    gender: "L",
-    className: "8A",
-    teacherId: "tch-2",
-    targetJuz: "Juz 29 & 30",
-    targetSurahCount: 48,
-    parentPhone: "0819-0987-6543",
-  },
-  {
-    id: "std-5",
-    nis: "232408004",
-    nisn: "0103456004",
-    name: "Khadijah Nabila Zahir",
-    gender: "P",
-    className: "8A",
-    teacherId: "tch-2",
-    targetJuz: "Juz 29 & 30",
-    targetSurahCount: 48,
-    parentPhone: "0821-3344-5566",
-  },
-  {
-    id: "std-8c-1",
-    nis: "232408080",
-    nisn: "0103456080",
-    name: "Farhan Malik Rabbani",
-    gender: "L",
-    className: "8C",
-    teacherId: "tch-2",
-    targetJuz: "Juz 29 & 30",
-    targetSurahCount: 48,
-    parentPhone: "0856-7788-9900",
-  },
-  {
-    id: "std-8c-2",
-    nis: "232408081",
-    nisn: "0103456081",
-    name: "Zahra Khairunnisa",
-    gender: "P",
-    className: "8C",
-    teacherId: "tch-2",
-    targetJuz: "Juz 29 & 30",
-    targetSurahCount: 48,
-    parentPhone: "0818-4455-6677",
-  },
-  {
-    id: "std-6",
-    nis: "222309001",
-    nisn: "0098765001",
-    name: "Zaid bin Haritsah Al-Anshari",
-    gender: "L",
-    className: "9A",
-    teacherId: "tch-3",
-    targetJuz: "Juz 28, 29, 30",
-    targetSurahCount: 59,
-    parentPhone: "0878-1122-3344",
-  },
-  {
-    id: "std-9c-1",
-    nis: "222309080",
-    nisn: "0098765080",
-    name: "Abdullah Azzam Ramadhan",
-    gender: "L",
-    className: "9C",
-    teacherId: "tch-3",
-    targetJuz: "Juz 28, 29, 30",
-    targetSurahCount: 59,
-    parentPhone: "0811-2233-4455",
-  },
-  {
-    id: "std-9c-2",
-    nis: "222309081",
-    nisn: "0098765081",
-    name: "Yasmin Nur Azizah",
-    gender: "P",
-    className: "9C",
-    teacherId: "tch-3",
-    targetJuz: "Juz 28, 29, 30",
-    targetSurahCount: 59,
-    parentPhone: "0812-4455-6688",
-  },
-  ...STUDENTS_7B,
-];
+export const INITIAL_STUDENTS: Student[] = ALL_168_STUDENTS;
 
 export const INITIAL_REPORTS: Record<string, StudentReportData> = {
   ...create7BReports(),
@@ -568,3 +413,85 @@ export const INITIAL_REPORTS: Record<string, StudentReportData> = {
     },
   },
 };
+
+// Ensure all 168 students (including all 20 students of 9C) have active, complete reports
+ALL_168_STUDENTS.forEach((student) => {
+  if (!INITIAL_REPORTS[student.id]) {
+    const is9 = student.className.startsWith('9');
+    const is8 = student.className.startsWith('8');
+
+    const baseScore = 90 + ((student.name.length * 3) % 7);
+    const jilid = (is9 ? 6 : is8 ? 6 : 5) as 1 | 2 | 3 | 4 | 5 | 6;
+    const page = is9 ? 32 : is8 ? 24 : 18;
+
+    const tahsin = createDefaultTahsinGrade(
+      jilid,
+      page,
+      'Lulus (Naik Jilid)',
+      baseScore,
+      is9 
+        ? "Tuntas Khatam Iqro' Jilid 6 AMM Yogyakarta. Siap munaqasyah Al-Qur'an dan Tahfiz 3 Juz (28, 29, 30)."
+        : is8
+        ? "Tuntas materi Iqro' Jilid 6. Mempersiapkan ujian kenaikan jilid dan Tahfiz Juz 29-30."
+        : "Tuntas materi tajwid dasar Iqro' Jilid 5-6 dan Tahfiz Juz 30 Mutqin."
+    );
+
+    // Provide default tahfiz records for 9C and others
+    const tahfizRecords = is9
+      ? [
+          {
+            id: `rec-${student.id}-1`,
+            surahNumber: 67,
+            surahName: "Al-Mulk",
+            juzNumber: 29,
+            ayatFrom: 1,
+            ayatTo: 30,
+            gradeScore: 94,
+            predicate: "Mumtaz" as const,
+            isMutqin: true,
+            date: "2025-11-15",
+            examinerTeacherName: "Ust. Mahmud Ali Yafi, S.S, M.Pd.I.",
+            notes: "Hafalan lancar dan tajwid mutqin.",
+          },
+          {
+            id: `rec-${student.id}-2`,
+            surahNumber: 78,
+            surahName: "An-Naba'",
+            juzNumber: 30,
+            ayatFrom: 1,
+            ayatTo: 40,
+            gradeScore: 96,
+            predicate: "Mumtaz" as const,
+            isMutqin: true,
+            date: "2025-12-05",
+            examinerTeacherName: "Ust. Mahmud Ali Yafi, S.S, M.Pd.I.",
+            notes: "Fashahah sangat baik.",
+          },
+        ]
+      : [];
+
+    const totalAyat = tahfizRecords.reduce((acc, r) => acc + (r.ayatTo - r.ayatFrom + 1), 0);
+    const targetCount = student.targetSurahCount || (is9 ? 59 : is8 ? 48 : 37);
+    const completionPercentage = Math.min(100, Math.round((tahfizRecords.length / targetCount) * 100));
+
+    INITIAL_REPORTS[student.id] = {
+      student,
+      tahsin,
+      tahfizRecords,
+      adab: {
+        kedisiplinan: 'A',
+        adabMushaf: 'A',
+        kerajinanMurojaah: 'A',
+        semangatHalaqah: 'A',
+        generalNotes: `Santri kelas ${student.className} aktif dan istiqamah dalam halaqah Al-Qur'an SMPIA 9.`,
+      },
+      summaryHafalan: {
+        totalSurahLulus: tahfizRecords.length,
+        totalAyatHafal: totalAyat,
+        juzCompleted: is9 ? [30] : [],
+        currentJuzInProgress: is9 ? 29 : is8 ? 29 : 30,
+        completionPercentage,
+      },
+    };
+  }
+});

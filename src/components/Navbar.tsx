@@ -220,10 +220,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onChange={(e) => onChangeStudentId(e.target.value)}
                   className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold focus:ring-2 focus:ring-emerald-600 cursor-pointer max-w-[210px] truncate"
                 >
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.className})
-                    </option>
+                  {Array.from(new Set(students.map((s) => s.className))).sort().map((cls) => (
+                    <optgroup key={cls} label={`Kelas ${cls} (${students.filter((s) => s.className === cls).length} santri)`}>
+                      {students.filter((s) => s.className === cls).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.className})
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
@@ -266,10 +270,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={(e) => onChangeStudentId(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs text-slate-900 font-medium"
               >
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} (Kelas {s.className})
-                  </option>
+                {Array.from(new Set(students.map((s) => s.className))).sort().map((cls) => (
+                  <optgroup key={cls} label={`Kelas ${cls} (${students.filter((s) => s.className === cls).length} santri)`}>
+                    {students.filter((s) => s.className === cls).map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} (Kelas {s.className})
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

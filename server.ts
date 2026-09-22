@@ -39,6 +39,16 @@ function getDatabase(): SchoolDatabase {
       const fileData = fs.readFileSync(DB_FILE, "utf-8");
       const parsed = JSON.parse(fileData);
       if (parsed && parsed.students && parsed.reports) {
+        const count9C = parsed.students.filter((s: any) => s.className === '9C').length;
+        if (count9C < 20 || parsed.students.length < 168) {
+          // Merge missing students and reports for Kelas 9C and 168 roster
+          parsed.students = INITIAL_STUDENTS;
+          parsed.reports = { ...INITIAL_REPORTS, ...parsed.reports };
+          parsed.version = (parsed.version || 1) + 1;
+          parsed.lastUpdated = new Date().toISOString();
+          parsed.updatedByDevice = "System Sync (Rombel 9C Provisioning)";
+          saveDatabaseToFile(parsed);
+        }
         dbCache = parsed;
         return dbCache!;
       }
