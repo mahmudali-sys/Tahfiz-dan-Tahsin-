@@ -23,6 +23,7 @@ import { RapotPreviewModal } from './RapotPreviewModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { BulkStudentImportModal } from './BulkStudentImportModal';
 import { TahfizSurahRecord } from '../types';
+import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
 
 interface TeacherDashboardProps {
   currentTeacher: Teacher;
@@ -189,7 +190,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               ))}
             </optgroup>
             <optgroup label="Semua Rombel SMPIA 9">
-              {Array.from(new Set(students.map((s) => s.className)))
+              {Array.from(new Set([...SMPIA9_VALID_CLASSES, ...students.map((s) => s.className)]))
                 .sort()
                 .map((cls) => (
                   <option key={cls} value={cls}>

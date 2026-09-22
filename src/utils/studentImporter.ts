@@ -1,11 +1,11 @@
 import * as XLSX from 'xlsx';
 import { Student, Teacher } from '../types';
 
-// The 8 official classes at SMP Islam Al Azhar 9 Bekasi
+// The official 9 classes at SMP Islam Al Azhar 9 Bekasi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C)
 export const SMPIA9_VALID_CLASSES = [
   '7A', '7B', '7C',
   '8A', '8B', '8C',
-  '9A', '9B'
+  '9A', '9B', '9C'
 ] as const;
 
 export type SMPIA9Class = typeof SMPIA9_VALID_CLASSES[number];
@@ -71,40 +71,68 @@ export function generateAutoNis(className: string, index: number): string {
 }
 
 // Robust parse of Gender values from any cell/token
+// Recognizes: L, P, LK, PR, Laki-laki, Perempuan, Putra, Putri, Ikhwan, Akhwat, Pria, Wanita, etc.
+// STRICTLY prevents row index numbers from false-triggering gender!
 export function parseGenderValue(val: any): 'L' | 'P' | null {
   if (val === undefined || val === null) return null;
-  const str = String(val).trim().toUpperCase();
-  if (!str) return null;
+  const raw = String(val).replace(/\u00A0/g, ' ').trim();
+  if (!raw) return null;
 
-  // Female check
+  const clean = raw
+    .toLowerCase()
+    .replace(/[\.\-_,;:\(\)\[\]\{\}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!clean) return null;
+
+  // 1. Explicit Female detection (Akhwat / Perempuan / Putri / Wanita / Female / P / Pr)
   if (
-    str === 'P' ||
-    str === 'PR' ||
-    str === 'PEREMPUAN' ||
-    str === 'WANITA' ||
-    str === 'AKHWAT' ||
-    str === 'F' ||
-    str === 'FEMALE' ||
-    str === 'GIRL' ||
-    str === '2'
+    clean === 'p' ||
+    clean === 'pr' ||
+    clean === 'perempuan' ||
+    clean.startsWith('peremp') ||
+    clean === 'wanita' ||
+    clean === 'putri' ||
+    clean.startsWith('putri') ||
+    clean === 'akhwat' ||
+    clean.startsWith('akh') ||
+    clean === 'f' ||
+    clean === 'female' ||
+    clean === 'girl' ||
+    clean.includes('perempuan') ||
+    clean.includes('wanita') ||
+    clean.includes('akhwat') ||
+    clean.includes('putri') ||
+    clean === 'p perempuan' ||
+    clean === 'perempuan p'
   ) {
     return 'P';
   }
 
-  // Male check
+  // 2. Explicit Male detection (Ikhwan / Laki-laki / Putra / Pria / Lelaki / Male / L / Lk)
   if (
-    str === 'L' ||
-    str === 'LK' ||
-    str === 'LAKI-LAKI' ||
-    str === 'LAKI - LAKI' ||
-    str === 'LAKI LAKI' ||
-    str === 'LAKILAKI' ||
-    str === 'PRIA' ||
-    str === 'IKHWAN' ||
-    str === 'M' ||
-    str === 'MALE' ||
-    str === 'BOY' ||
-    str === '1'
+    clean === 'l' ||
+    clean === 'lk' ||
+    clean === 'laki' ||
+    clean === 'laki laki' ||
+    clean === 'lakilaki' ||
+    clean.startsWith('laki') ||
+    clean === 'pria' ||
+    clean === 'lelaki' ||
+    clean === 'putra' ||
+    clean.startsWith('putra') ||
+    clean === 'ikhwan' ||
+    clean.startsWith('ikh') ||
+    clean === 'm' ||
+    clean === 'male' ||
+    clean === 'boy' ||
+    clean.includes('laki') ||
+    clean.includes('pria') ||
+    clean.includes('ikhwan') ||
+    clean.includes('putra') ||
+    clean === 'l laki laki' ||
+    clean === 'laki laki l'
   ) {
     return 'L';
   }
@@ -214,7 +242,7 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
       continue; // skip header
     }
 
-    // Determine delimiter: Tab, Semicolon, Comma, or multi-space
+    // Determine delimiter: Tab, Semicolon, Comma, Bar, or whitespace
     let tokens: string[] = [];
     if (line.includes('\t')) {
       tokens = line.split('\t').map((t) => t.trim());
@@ -224,8 +252,11 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
       tokens = line.split('|').map((t) => t.trim());
     } else if (line.includes(',')) {
       tokens = line.split(',').map((t) => t.trim());
-    } else {
+    } else if (/\s{2,}/.test(line)) {
       tokens = line.split(/\s{2,}/).map((t) => t.trim());
+    } else {
+      // Single space separated: split into tokens so gender, class, and NISN can be extracted
+      tokens = line.split(/\s+/).map((t) => t.trim());
     }
 
     // Filter out leading numbering like "1.", "1)", "1"
@@ -247,7 +278,7 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
       const tok = tokens[j];
       if (!tok) continue;
 
-      // 1. Gender check: directly matching L/P, LK/PR, etc.
+      // 1. Gender check: directly matching L/P, LK/PR, Putra/Putri, etc.
       if (detectedGender === null) {
         const g = parseGenderValue(tok);
         if (g !== null) {
@@ -256,13 +287,12 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
         }
       }
 
-      // 2. Class check (like 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C, VII-A, etc.)
+      // 2. Class check (like 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C, VII-C, etc.)
       if (!detectedClass) {
         const normalized = normalizeClassName(tok);
         if (
           isSmpia9ClassValid(normalized) ||
-          normalized === '9C' ||
-          /^[789][A-Z]$/.test(normalized) ||
+          /^[789][A-C]$/i.test(normalized) ||
           /^(VII|VIII|IX)/i.test(tok) ||
           /kelas\s*[789]/i.test(tok) ||
           /rombel\s*[789]/i.test(tok)
@@ -303,9 +333,8 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
     // Final gender: if user supplied gender, use it strictly. Fallback to name guess only if absent.
     const finalGender: 'L' | 'P' = detectedGender !== null ? detectedGender : guessGenderFromName(name);
 
-    // Final class resolution & validation
+    // Final class resolution & validation (Supports all 9 official classes: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C)
     const finalClass = detectedClass || '';
-    const is9C = finalClass === '9C';
     const isClassAllowed = isSmpia9ClassValid(finalClass);
 
     let isValid = true;
@@ -314,14 +343,11 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
     if (!name || name.length < 2) {
       isValid = false;
       validationError = 'Nama santri tidak boleh kosong';
-    } else if (is9C) {
-      isValid = false;
-      validationError = 'Kelas 9C tidak terdaftar di SMPIA 9. Pilihan rombel resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.';
     } else if (!isClassAllowed) {
       isValid = false;
       validationError = finalClass
-        ? `Kelas "${finalClass}" tidak valid. Pilihan kelas resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.`
-        : 'Kelas wajib diisi (pilih dari 8 kelas resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B)';
+        ? `Kelas "${finalClass}" tidak valid. Pilihan kelas resmi SMP Islam Al Azhar 9: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C.`
+        : 'Kelas wajib diisi (Pilih: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C)';
     }
 
     results.push({
@@ -367,16 +393,24 @@ export function parseExcelStudents(buffer: ArrayBuffer): ParsedStudentRow[] {
       if (cell.includes('nisn')) nisnCol = c;
       if (cell.includes('kelas') || cell.includes('rombel') || cell === 'class' || cell.includes('tingkat') || cell.includes('ruang') || cell === 'kls') classCol = c;
       if (cell === 'nis' || cell.includes('induk') || cell.includes('no_induk') || cell.includes('no induk')) nisCol = c;
+      // Robust gender header detection
       if (
         cell === 'jk' || 
+        cell.startsWith('jk ') || 
+        cell.startsWith('jk(') || 
+        cell.startsWith('jk.') || 
         cell === 'j.k' || 
+        cell === 'j.k.' ||
         cell === 'l/p' || 
         cell === 'lp' || 
         cell === 'l / p' || 
+        cell.includes('l/p') ||
         cell.includes('kelamin') || 
         cell === 'gender' || 
+        cell.includes('gender') || 
         cell.includes('sex') || 
-        cell.includes('jns')
+        cell.includes('jns') ||
+        cell.includes('seks')
       ) {
         genderCol = c;
       }
@@ -409,9 +443,14 @@ export function parseExcelStudents(buffer: ArrayBuffer): ParsedStudentRow[] {
     if (genderCol >= 0 && row[genderCol] !== undefined) {
       detectedGender = parseGenderValue(row[genderCol]);
     }
-    // If not found from designated column, scan entire row for gender marker
+    // If not found from designated column, scan other text cells in row
+    // (STRICTLY skip columns that are purely digits or numeric sequence numbers)
     if (detectedGender === null) {
       for (let c = 0; c < row.length; c++) {
+        if (c === nameCol || c === nisnCol || c === nisCol || c === phoneCol || c === classCol) continue;
+        const cellVal = String(row[c] || '').trim();
+        // Do not parse pure numbers as gender
+        if (/^\d+$/.test(cellVal)) continue;
         const g = parseGenderValue(row[c]);
         if (g !== null) {
           detectedGender = g;
@@ -427,7 +466,7 @@ export function parseExcelStudents(buffer: ArrayBuffer): ParsedStudentRow[] {
       // scan row for a class pattern
       for (let c = 0; c < row.length; c++) {
         const testNorm = normalizeClassName(String(row[c] || ''));
-        if (isSmpia9ClassValid(testNorm) || testNorm === '9C') {
+        if (isSmpia9ClassValid(testNorm)) {
           normalizedClass = testNorm;
           break;
         }
@@ -435,7 +474,6 @@ export function parseExcelStudents(buffer: ArrayBuffer): ParsedStudentRow[] {
     }
 
     const cleanedNisn = rawNisn.replace(/\D/g, '');
-    const is9C = normalizedClass === '9C';
     const isClassAllowed = isSmpia9ClassValid(normalizedClass);
 
     let isValid = true;
@@ -444,14 +482,11 @@ export function parseExcelStudents(buffer: ArrayBuffer): ParsedStudentRow[] {
     if (rawName.trim().length < 2) {
       isValid = false;
       validationError = 'Nama murid tidak boleh kosong';
-    } else if (is9C) {
-      isValid = false;
-      validationError = 'Kelas 9C tidak terdaftar di SMPIA 9. Pilihan rombel resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.';
     } else if (!isClassAllowed) {
       isValid = false;
       validationError = normalizedClass
-        ? `Kelas "${normalizedClass}" tidak valid. Pilihan kelas resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.`
-        : 'Kelas wajib diisi (pilih dari 8 kelas resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B)';
+        ? `Kelas "${normalizedClass}" tidak valid. Pilihan kelas resmi SMP Islam Al Azhar 9: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C.`
+        : 'Kelas wajib diisi (Pilih: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C)';
     }
 
     results.push({
@@ -539,10 +574,26 @@ export function downloadExcelTemplate(): void {
     {
       'Nama Santri (Wajib)': 'Maryam Sholihatul Jannah',
       'NISN (10 Digit)': '0098765002',
-      'Kelas (7A-9B)': '9B',
+      'Kelas (7A-9C)': '9B',
       'Jenis Kelamin (L/P)': 'P',
       'NIS (Opsional)': '222309002',
       'No HP Orang Tua / Wali': '0812-9988-7766',
+    },
+    {
+      'Nama Santri (Wajib)': 'Salman Al-Hakim Ramadhan',
+      'NISN (10 Digit)': '0098765021',
+      'Kelas (7A-9C)': '9C',
+      'Jenis Kelamin (L/P)': 'L',
+      'NIS (Opsional)': '222309021',
+      'No HP Orang Tua / Wali': '0812-5566-7788',
+    },
+    {
+      'Nama Santri (Wajib)': 'Naila Zahra Al-Munawwarah',
+      'NISN (10 Digit)': '0098765022',
+      'Kelas (7A-9C)': '9C',
+      'Jenis Kelamin (L/P)': 'P',
+      'NIS (Opsional)': '222309022',
+      'No HP Orang Tua / Wali': '0878-3344-5566',
     },
   ];
 
@@ -575,7 +626,9 @@ export function downloadCsvTemplate(): void {
     'Khadijah Nabila Zahir,0103456004,8B,P,232408004,0821-3344-5566\n' +
     'Fajar Siddiq Pratama,0103456021,8C,L,232408021,0877-5566-7788\n' +
     'Zaid bin Haritsah Al-Anshari,0098765001,9A,L,222309001,0878-1122-3344\n' +
-    'Maryam Sholihatul Jannah,0098765002,9B,P,222309002,0812-9988-7766\n';
+    'Maryam Sholihatul Jannah,0098765002,9B,P,222309002,0812-9988-7766\n' +
+    'Salman Al-Hakim Ramadhan,0098765021,9C,L,222309021,0812-5566-7788\n' +
+    'Naila Zahra Al-Munawwarah,0098765022,9C,P,222309022,0878-3344-5566\n';
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -587,7 +640,7 @@ export function downloadCsvTemplate(): void {
   document.body.removeChild(link);
 }
 
-// Preset complete roster for SMP Islam Al Azhar 9 Bekasi (8 official classes: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B)
+// Preset complete roster for SMP Islam Al Azhar 9 Bekasi (9 official classes: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C)
 export const SMPIA9_FULL_ROSTER: Omit<Student, 'id' | 'teacherId'>[] = [
   // KELAS 7A (Target: Juz 30)
   {
@@ -953,5 +1006,47 @@ export const SMPIA9_FULL_ROSTER: Omit<Student, 'id' | 'teacherId'>[] = [
     targetJuz: 'Juz 28, 29, 30',
     targetSurahCount: 59,
     parentPhone: '0813-7788-9922',
+  },
+
+  // KELAS 9C (Target: Juz 28, 29, 30)
+  {
+    nis: '222309021',
+    nisn: '0098765021',
+    name: 'Salman Al-Hakim Ramadhan',
+    gender: 'L',
+    className: '9C',
+    targetJuz: 'Juz 28, 29, 30',
+    targetSurahCount: 59,
+    parentPhone: '0812-5566-7788',
+  },
+  {
+    nis: '222309022',
+    nisn: '0098765022',
+    name: 'Naila Zahra Al-Munawwarah',
+    gender: 'P',
+    className: '9C',
+    targetJuz: 'Juz 28, 29, 30',
+    targetSurahCount: 59,
+    parentPhone: '0878-3344-5566',
+  },
+  {
+    nis: '222309023',
+    nisn: '0098765023',
+    name: 'Muhammad Farhan Al-Ghifari',
+    gender: 'L',
+    className: '9C',
+    targetJuz: 'Juz 28, 29, 30',
+    targetSurahCount: 59,
+    parentPhone: '0813-2211-4433',
+  },
+  {
+    nis: '222309024',
+    nisn: '0098765024',
+    name: 'Aisyah Putri Azzahra',
+    gender: 'P',
+    className: '9C',
+    targetJuz: 'Juz 28, 29, 30',
+    targetSurahCount: 59,
+    parentPhone: '0858-7788-9900',
   },
 ];

@@ -67,7 +67,7 @@ export const BulkStudentImportModal: React.FC<BulkStudentImportModalProps> = ({
     setParsedRows(rows);
   };
 
-  // Quick sample paste showcasing all 8 official classes
+  // Quick sample paste showcasing all 9 official classes (7A-7C, 8A-8C, 9A-9C)
   const handleLoadPasteExample = () => {
     const sample = 
 `Muhammad Fatih Al-Ayyubi	0112894001	7A	L	0812-1002-3344
@@ -85,7 +85,9 @@ Tiara Dewi Maharani	0103456023	8C	P	0856-1122-3344
 Zaid bin Haritsah Al-Anshari	0098765001	9A	L	0878-1122-3344
 Maryam Sholihatul Jannah	0098765004	9A	P	0812-9988-7766
 Abdullah Azzam Pratama	0098765011	9B	L	0857-1122-8899
-Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
+Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811
+Salman Al-Hakim Ramadhan	0098765021	9C	L	0812-5566-7788
+Naila Zahra Al-Munawwarah	0098765022	9C	P	0878-3344-5566`;
 
     setPasteText(sample);
     const rows = parseRawTextStudents(sample);
@@ -144,15 +146,11 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
       const row = { ...copy[index] };
       const normalized = normalizeClassName(newClass);
       row.className = normalized;
-      const is9C = normalized === '9C';
       const isAllowed = isSmpia9ClassValid(normalized);
 
-      if (is9C) {
+      if (!isAllowed) {
         row.isValid = false;
-        row.validationError = 'Kelas 9C tidak terdaftar di SMPIA 9. SMPIA 9 hanya memiliki 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.';
-      } else if (!isAllowed) {
-        row.isValid = false;
-        row.validationError = `Kelas "${normalized}" tidak valid. Pilihan kelas resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.`;
+        row.validationError = `Kelas "${normalized}" tidak valid. Pilihan kelas resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C.`;
       } else {
         row.isValid = Boolean(row.name && row.name.trim().length > 1);
         row.validationError = undefined;
@@ -175,12 +173,12 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
 
   // Submit and save
   const handleFinalSubmit = () => {
-    // Only import rows that are valid and strictly belong to one of the 8 classes (9C is strictly excluded)
+    // Only import rows that are valid and strictly belong to one of the 9 official classes (7A-7C, 8A-8C, 9A-9C)
     const validRows = parsedRows.filter(
-      (r) => r.isValid && r.name.trim() && isSmpia9ClassValid(r.className) && r.className !== '9C'
+      (r) => r.isValid && r.name.trim() && isSmpia9ClassValid(r.className)
     );
     if (validRows.length === 0) {
-      alert('Tidak ada data murid yang valid untuk diimpor. Pastikan nama terisi dan kelas dipilih dari 8 kelas resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B). Data kelas 9C tidak dapat diimpor.');
+      alert('Tidak ada data murid yang valid untuk diimpor. Pastikan nama terisi dan kelas dipilih dari 9 rombel resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C).');
       return;
     }
 
@@ -215,10 +213,9 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
   // Summary counts
   const validCount = parsedRows.filter((r) => r.isValid && isSmpia9ClassValid(r.className)).length;
   const invalidCount = parsedRows.length - validCount;
-  const count9C = parsedRows.filter((r) => r.className === '9C').length;
   const count7 = parsedRows.filter((r) => r.className.startsWith('7')).length;
   const count8 = parsedRows.filter((r) => r.className.startsWith('8')).length;
-  const count9 = parsedRows.filter((r) => r.className === '9A' || r.className === '9B').length;
+  const count9 = parsedRows.filter((r) => r.className.startsWith('9')).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 overflow-y-auto">
@@ -408,7 +405,7 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                 <span>Roster Baku SMP Islam Al Azhar 9 Bekasi Terpilih</span>
               </div>
               <p className="text-xs text-emerald-800 leading-relaxed">
-                Telah disiapkan <strong>{SMPIA9_FULL_ROSTER.length} data murid santri</strong> lengkap untuk rombel kelas 7A, 7B, 8A, 8B, 9A, dan 9B beserta NISN 10-digit, nomor induk (NIS) resmi tahun ajaran, dan target hafalan per kelas.
+                Telah disiapkan <strong>{SMPIA9_FULL_ROSTER.length} data murid santri</strong> lengkap untuk 9 rombel kelas resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C) beserta NISN 10-digit, jenis kelamin (Ikhwan/Akhwat), nomor induk (NIS) resmi tahun ajaran, dan target hafalan per jenjang.
               </p>
             </div>
           )}
@@ -437,22 +434,18 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                     Kls 8 (8A, 8B, 8C): {count8} santri
                   </span>
                   <span className="px-2 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-900">
-                    Kls 9 (9A, 9B): {count9} santri
+                    Kls 9 (9A, 9B, 9C): {count9} santri
                   </span>
                 </div>
               </div>
 
-              {/* Notice for 9C or invalid classes */}
-              {(count9C > 0 || invalidCount > 0) && (
+              {/* Notice for invalid classes if any */}
+              {invalidCount > 0 && (
                 <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-amber-900">
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div className="text-xs leading-relaxed">
-                    <strong>Pemberitahuan Rombel Resmi SMPIA 9:</strong>
-                    {count9C > 0 ? (
-                      <span> Ditemukan data berlabel <strong>Kelas 9C</strong>. SMPIA 9 hanya memiliki 8 rombel resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B), sehingga <strong>9C tidak terinput</strong> sampai Anda mengubahnya di kolom Kelas di bawah ke salah satu rombel resmi.</span>
-                    ) : (
-                      <span> Terdapat data yang belum memiliki kelas resmi yang sesuai. Silakan pilih kelas resmi pada tabel di bawah.</span>
-                    )}
+                    <strong>Pemberitahuan Validasi Data:</strong>
+                    <span> Terdapat {invalidCount} data yang nama atau rombelnya belum lengkap. Silakan tentukan kelas resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C) pada tabel pratinjau di bawah.</span>
                   </div>
                 </div>
               )}
@@ -478,7 +471,7 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                       <th className="py-2.5 px-3">No</th>
                       <th className="py-2.5 px-3">Nama Santri</th>
                       <th className="py-2.5 px-3 text-center">NISN</th>
-                      <th className="py-2.5 px-3 text-center">Kelas (8 Rombel Resmi)</th>
+                      <th className="py-2.5 px-3 text-center">Kelas (9 Rombel Resmi)</th>
                       <th className="py-2.5 px-3 text-center">Jenis Kelamin</th>
                       <th className="py-2.5 px-3">Target Kurikulum</th>
                       <th className="py-2.5 px-3">Pembimbing Otomatis</th>
@@ -490,14 +483,13 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                       const targets = getDefaultTargetForClass(row.className);
                       const tId = assignMode === 'auto' ? assignTeacherForClass(row.className, teachers) : assignMode;
                       const teacher = teachers.find((t) => t.id === tId);
-                      const is9C = row.className === '9C';
                       const isValidClass = isSmpia9ClassValid(row.className);
 
                       return (
                         <tr 
                           key={idx} 
                           className={`hover:bg-slate-50 transition-colors ${
-                            !row.isValid || is9C ? 'bg-rose-50/50' : ''
+                            !row.isValid ? 'bg-rose-50/50' : ''
                           }`}
                         >
                           <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">
@@ -525,13 +517,13 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                             )}
                           </td>
 
-                          {/* Editable Class Dropdown with 8 Official Classes */}
+                          {/* Editable Class Dropdown with 9 Official Classes (7A-7C, 8A-8C, 9A-9C) */}
                           <td className="py-2 px-3 text-center min-w-[130px]">
                             <select
                               value={isValidClass ? row.className : ''}
                               onChange={(e) => handleUpdateRowClass(idx, e.target.value)}
                               className={`w-full text-xs font-bold py-1 px-2 rounded-lg border cursor-pointer ${
-                                !isValidClass || is9C
+                                !isValidClass
                                   ? 'border-rose-400 bg-rose-50 text-rose-800'
                                   : row.className.startsWith('7')
                                   ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
@@ -542,7 +534,7 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                             >
                               {!isValidClass && (
                                 <option value="" disabled>
-                                  {is9C ? '⚠️ 9C Tidak Valid - Pilih Kelas' : '⚠️ Pilih Kelas Resmi'}
+                                  ⚠️ Pilih Kelas Resmi
                                 </option>
                               )}
                               {SMPIA9_VALID_CLASSES.map((c) => (
@@ -564,8 +556,8 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                                   : 'border-cyan-300 bg-cyan-50 text-cyan-800'
                               }`}
                             >
-                              <option value="L">L (Ikhwan)</option>
-                              <option value="P">P (Akhwat)</option>
+                              <option value="L">L (Laki-laki / Ikhwan)</option>
+                              <option value="P">P (Perempuan / Akhwat)</option>
                             </select>
                           </td>
 

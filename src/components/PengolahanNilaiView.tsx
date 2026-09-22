@@ -548,6 +548,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
             <optgroup label="Kelas 9 (Target Juz 28, 29, 30)">
               <option value="9A">Kelas 9A</option>
               <option value="9B">Kelas 9B</option>
+              <option value="9C">Kelas 9C</option>
             </optgroup>
           </select>
           <span className="text-xs font-medium text-slate-500 ml-1">

@@ -42,7 +42,7 @@ export const SMPIA9_TEACHER_ROSTER: Omit<Teacher, 'id'>[] = [
     name: 'Ustadz Hanif Al-Banjari, S.Q., M.Pd.',
     nip: '198711052012011004',
     gender: 'L',
-    assignedClasses: ['9A', '9B'],
+    assignedClasses: ['9A', '9B', '9C'],
     specialty: 'Tahsin & Tahfiz',
     phone: '0878-3344-5566',
   },

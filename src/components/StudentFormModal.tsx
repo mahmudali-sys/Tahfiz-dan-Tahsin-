@@ -147,7 +147,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               </select>
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Kelas (8 Rombel Resmi SMPIA 9)</label>
+              <label className="block font-semibold text-slate-700 mb-1">Kelas (9 Rombel Resmi SMPIA 9)</label>
               <select
                 value={className}
                 onChange={(e) => {
