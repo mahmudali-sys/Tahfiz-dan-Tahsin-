@@ -24,7 +24,10 @@ import {
   generateAutoNis,
   downloadExcelTemplate, 
   downloadCsvTemplate,
-  SMPIA9_FULL_ROSTER 
+  SMPIA9_FULL_ROSTER,
+  SMPIA9_VALID_CLASSES,
+  isSmpia9ClassValid,
+  normalizeClassName
 } from '../utils/studentImporter';
 
 interface BulkStudentImportModalProps {
@@ -64,18 +67,21 @@ export const BulkStudentImportModal: React.FC<BulkStudentImportModalProps> = ({
     setParsedRows(rows);
   };
 
-  // Quick sample paste
+  // Quick sample paste showcasing all 8 official classes
   const handleLoadPasteExample = () => {
     const sample = 
 `Muhammad Fatih Al-Ayyubi	0112894001	7A	L	0812-1002-3344
-Ahmad Zaki Al-Farizi	0112894002	7A	L	0813-8899-4411
 Aisyah Humaira Putri	0112894005	7A	P	0812-7788-9900
 Rizky Ramadhan Saputra	0112894011	7B	L	0858-9900-1122
 Hafizhah Khairunnisa	0112894014	7B	P	0877-1122-3344
+Muhammad Yusuf Al-Ayyubi	0112894021	7C	L	0812-3322-1100
+Annisa Zahra Nuraini	0112894023	7C	P	0812-4455-6677
 Ibrahim Hanif Al-Farisi	0103456001	8A	L	0819-0987-6543
 Khadijah Nabila Zahir	0103456003	8A	P	0821-3344-5566
 Salman Al-Farisi Ramadhan	0103456011	8B	L	0813-2233-4411
 Safira Aulia Rahman	0103456013	8B	P	0857-4455-6633
+Fajar Siddiq Pratama	0103456021	8C	L	0877-5566-7788
+Tiara Dewi Maharani	0103456023	8C	P	0856-1122-3344
 Zaid bin Haritsah Al-Anshari	0098765001	9A	L	0878-1122-3344
 Maryam Sholihatul Jannah	0098765004	9A	P	0812-9988-7766
 Abdullah Azzam Pratama	0098765011	9B	L	0857-1122-8899
@@ -131,11 +137,50 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
     setParsedRows((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Allow user to correct class directly in preview table
+  const handleUpdateRowClass = (index: number, newClass: string) => {
+    setParsedRows((prev) => {
+      const copy = [...prev];
+      const row = { ...copy[index] };
+      const normalized = normalizeClassName(newClass);
+      row.className = normalized;
+      const is9C = normalized === '9C';
+      const isAllowed = isSmpia9ClassValid(normalized);
+
+      if (is9C) {
+        row.isValid = false;
+        row.validationError = 'Kelas 9C tidak terdaftar di SMPIA 9. SMPIA 9 hanya memiliki 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.';
+      } else if (!isAllowed) {
+        row.isValid = false;
+        row.validationError = `Kelas "${normalized}" tidak valid. Pilihan kelas resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.`;
+      } else {
+        row.isValid = Boolean(row.name && row.name.trim().length > 1);
+        row.validationError = undefined;
+        const targets = getDefaultTargetForClass(normalized);
+        row.targetJuz = targets.targetJuz;
+      }
+      copy[index] = row;
+      return copy;
+    });
+  };
+
+  // Allow user to toggle/correct gender directly in preview table
+  const handleUpdateRowGender = (index: number, newGender: 'L' | 'P') => {
+    setParsedRows((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], gender: newGender };
+      return copy;
+    });
+  };
+
   // Submit and save
   const handleFinalSubmit = () => {
-    const validRows = parsedRows.filter((r) => r.isValid && r.name.trim());
+    // Only import rows that are valid and strictly belong to one of the 8 classes (9C is strictly excluded)
+    const validRows = parsedRows.filter(
+      (r) => r.isValid && r.name.trim() && isSmpia9ClassValid(r.className) && r.className !== '9C'
+    );
     if (validRows.length === 0) {
-      alert('Tidak ada data murid yang valid untuk diimpor.');
+      alert('Tidak ada data murid yang valid untuk diimpor. Pastikan nama terisi dan kelas dipilih dari 8 kelas resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B). Data kelas 9C tidak dapat diimpor.');
       return;
     }
 
@@ -168,10 +213,12 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
   };
 
   // Summary counts
-  const validCount = parsedRows.filter((r) => r.isValid).length;
+  const validCount = parsedRows.filter((r) => r.isValid && isSmpia9ClassValid(r.className)).length;
+  const invalidCount = parsedRows.length - validCount;
+  const count9C = parsedRows.filter((r) => r.className === '9C').length;
   const count7 = parsedRows.filter((r) => r.className.startsWith('7')).length;
   const count8 = parsedRows.filter((r) => r.className.startsWith('8')).length;
-  const count9 = parsedRows.filter((r) => r.className.startsWith('9')).length;
+  const count9 = parsedRows.filter((r) => r.className === '9A' || r.className === '9B').length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 overflow-y-auto">
@@ -368,25 +415,47 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
 
           {/* STATS & FILTER SUMMARY BANNER */}
           {parsedRows.length > 0 && (
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-800">Hasil Analisis:</span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-                  {validCount} Santri Terdeteksi
-                </span>
+            <div className="space-y-2">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-800">Hasil Analisis:</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                    {validCount} Santri Terverifikasi
+                  </span>
+                  {invalidCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold">
+                      {invalidCount} Perlu Perbaikan
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                  <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900">
+                    Kls 7 (7A, 7B, 7C): {count7} santri
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-900">
+                    Kls 8 (8A, 8B, 8C): {count8} santri
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-900">
+                    Kls 9 (9A, 9B): {count9} santri
+                  </span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 text-[11px] font-semibold">
-                <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-900">
-                  Kelas 7: {count7} santri (Juz 30)
-                </span>
-                <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-900">
-                  Kelas 8: {count8} santri (Juz 29 & 30)
-                </span>
-                <span className="px-2 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-900">
-                  Kelas 9: {count9} santri (Juz 28, 29, 30)
-                </span>
-              </div>
+              {/* Notice for 9C or invalid classes */}
+              {(count9C > 0 || invalidCount > 0) && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-amber-900">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs leading-relaxed">
+                    <strong>Pemberitahuan Rombel Resmi SMPIA 9:</strong>
+                    {count9C > 0 ? (
+                      <span> Ditemukan data berlabel <strong>Kelas 9C</strong>. SMPIA 9 hanya memiliki 8 rombel resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B), sehingga <strong>9C tidak terinput</strong> sampai Anda mengubahnya di kolom Kelas di bawah ke salah satu rombel resmi.</span>
+                    ) : (
+                      <span> Terdapat data yang belum memiliki kelas resmi yang sesuai. Silakan pilih kelas resmi pada tabel di bawah.</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -398,19 +467,19 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                   Pratinjau Data Murid yang Akan Dimasukkan ({parsedRows.length})
                 </h4>
                 <span className="text-[11px] text-slate-500">
-                  Periksa data sebelum menekan tombol Simpan
+                  Anda dapat mengubah Kelas & Jenis Kelamin langsung pada tabel sebelum disimpan
                 </span>
               </div>
 
-              <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-56 overflow-y-auto">
+              <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-64 overflow-y-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="sticky top-0 bg-slate-100 text-slate-700 uppercase text-[10px] font-bold z-10">
                     <tr>
                       <th className="py-2.5 px-3">No</th>
                       <th className="py-2.5 px-3">Nama Santri</th>
                       <th className="py-2.5 px-3 text-center">NISN</th>
-                      <th className="py-2.5 px-3 text-center">Kelas</th>
-                      <th className="py-2.5 px-3 text-center">L/P</th>
+                      <th className="py-2.5 px-3 text-center">Kelas (8 Rombel Resmi)</th>
+                      <th className="py-2.5 px-3 text-center">Jenis Kelamin</th>
                       <th className="py-2.5 px-3">Target Kurikulum</th>
                       <th className="py-2.5 px-3">Pembimbing Otomatis</th>
                       <th className="py-2.5 px-3 text-center">Aksi</th>
@@ -421,17 +490,26 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                       const targets = getDefaultTargetForClass(row.className);
                       const tId = assignMode === 'auto' ? assignTeacherForClass(row.className, teachers) : assignMode;
                       const teacher = teachers.find((t) => t.id === tId);
-                      const isClass7 = row.className.startsWith('7');
-                      const isClass8 = row.className.startsWith('8');
-                      const isClass9 = row.className.startsWith('9');
+                      const is9C = row.className === '9C';
+                      const isValidClass = isSmpia9ClassValid(row.className);
 
                       return (
-                        <tr key={idx} className="hover:bg-slate-50">
+                        <tr 
+                          key={idx} 
+                          className={`hover:bg-slate-50 transition-colors ${
+                            !row.isValid || is9C ? 'bg-rose-50/50' : ''
+                          }`}
+                        >
                           <td className="py-2 px-3 text-slate-400 font-mono text-[11px]">
                             {idx + 1}
                           </td>
                           <td className="py-2 px-3 font-bold text-slate-900">
                             {row.name}
+                            {row.validationError && (
+                              <span className="block text-[10px] text-rose-600 font-normal">
+                                ⚠️ {row.validationError}
+                              </span>
+                            )}
                             {row.parentPhone && (
                               <span className="block text-[10px] text-slate-400 font-normal">
                                 Telp: {row.parentPhone}
@@ -439,31 +517,58 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                             )}
                           </td>
                           <td className="py-2 px-3 text-center font-mono text-slate-700">
-                            {row.nisn}
-                            {row.nisn.length !== 10 && (
+                            {row.nisn || <span className="text-slate-400 italic text-[10px]">-</span>}
+                            {row.nisn && row.nisn.length !== 10 && (
                               <span className="block text-[9px] text-amber-600 font-sans">
-                                (Perhatian: lazimnya 10 digit)
+                                ({row.nisn.length} digit)
                               </span>
                             )}
                           </td>
-                          <td className="py-2 px-3 text-center">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                isClass7
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : isClass8
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : isClass9
-                                  ? 'bg-purple-100 text-purple-800'
-                                  : 'bg-slate-100 text-slate-800'
+
+                          {/* Editable Class Dropdown with 8 Official Classes */}
+                          <td className="py-2 px-3 text-center min-w-[130px]">
+                            <select
+                              value={isValidClass ? row.className : ''}
+                              onChange={(e) => handleUpdateRowClass(idx, e.target.value)}
+                              className={`w-full text-xs font-bold py-1 px-2 rounded-lg border cursor-pointer ${
+                                !isValidClass || is9C
+                                  ? 'border-rose-400 bg-rose-50 text-rose-800'
+                                  : row.className.startsWith('7')
+                                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                                  : row.className.startsWith('8')
+                                  ? 'border-blue-300 bg-blue-50 text-blue-800'
+                                  : 'border-purple-300 bg-purple-50 text-purple-800'
                               }`}
                             >
-                              {row.className}
-                            </span>
+                              {!isValidClass && (
+                                <option value="" disabled>
+                                  {is9C ? '⚠️ 9C Tidak Valid - Pilih Kelas' : '⚠️ Pilih Kelas Resmi'}
+                                </option>
+                              )}
+                              {SMPIA9_VALID_CLASSES.map((c) => (
+                                <option key={c} value={c}>
+                                  Kelas {c}
+                                </option>
+                              ))}
+                            </select>
                           </td>
-                          <td className="py-2 px-3 text-center font-semibold text-slate-700">
-                            {row.gender}
+
+                          {/* Editable Gender Dropdown */}
+                          <td className="py-2 px-3 text-center min-w-[110px]">
+                            <select
+                              value={row.gender === 'P' ? 'P' : 'L'}
+                              onChange={(e) => handleUpdateRowGender(idx, e.target.value as 'L' | 'P')}
+                              className={`text-xs font-bold py-1 px-2 rounded-lg border cursor-pointer ${
+                                row.gender === 'P'
+                                  ? 'border-pink-300 bg-pink-50 text-pink-700'
+                                  : 'border-cyan-300 bg-cyan-50 text-cyan-800'
+                              }`}
+                            >
+                              <option value="L">L (Ikhwan)</option>
+                              <option value="P">P (Akhwat)</option>
+                            </select>
                           </td>
+
                           <td className="py-2 px-3 text-emerald-800 font-semibold text-[11px]">
                             {row.targetJuz || targets.targetJuz}
                           </td>
@@ -474,7 +579,7 @@ Salma Aqila Lathifah	0098765013	9B	P	0812-4455-8811`;
                             <button
                               type="button"
                               onClick={() => handleRemoveRow(idx)}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer transition-colors"
                               title="Hapus baris ini"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

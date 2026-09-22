@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, UserPlus, User } from 'lucide-react';
 import { Student, Teacher } from '../types';
+import { SMPIA9_VALID_CLASSES, normalizeClassName, getDefaultTargetForClass, assignTeacherForClass } from '../utils/studentImporter';
 
 interface StudentFormModalProps {
   isOpen: boolean;
@@ -34,11 +35,12 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       setNis(studentToEdit.nis);
       setNisn(studentToEdit.nisn);
       setName(studentToEdit.name);
-      setGender(studentToEdit.gender);
-      setClassName(studentToEdit.className);
-      setTeacherId(studentToEdit.teacherId);
-      setTargetJuz(studentToEdit.targetJuz);
-      setTargetSurahCount(studentToEdit.targetSurahCount);
+      setGender(studentToEdit.gender === 'P' ? 'P' : 'L');
+      const normClass = normalizeClassName(studentToEdit.className);
+      setClassName((SMPIA9_VALID_CLASSES as readonly string[]).includes(normClass) ? normClass : '7A');
+      setTeacherId(studentToEdit.teacherId || teachers[0]?.id || '');
+      setTargetJuz(studentToEdit.targetJuz || 'Juz 30 (Tuntas Mutqin)');
+      setTargetSurahCount(studentToEdit.targetSurahCount || 37);
       setParentPhone(studentToEdit.parentPhone || '');
     } else {
       // Defaults for new student
@@ -48,8 +50,9 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       setGender('L');
       setClassName('7A');
       setTeacherId(teachers[0]?.id || '');
-      setTargetJuz('Juz 30 (Tuntas Mutqin)');
-      setTargetSurahCount(37);
+      const defaultTarget = getDefaultTargetForClass('7A');
+      setTargetJuz(defaultTarget.targetJuz);
+      setTargetSurahCount(defaultTarget.targetSurahCount);
       setParentPhone('');
     }
   }, [studentToEdit, isOpen, teachers]);
@@ -144,18 +147,28 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               </select>
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Kelas (SMP)</label>
+              <label className="block font-semibold text-slate-700 mb-1">Kelas (8 Rombel Resmi SMPIA 9)</label>
               <select
                 value={className}
-                onChange={(e) => setClassName(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs font-semibold"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setClassName(val);
+                  const defaults = getDefaultTargetForClass(val);
+                  setTargetJuz(defaults.targetJuz);
+                  setTargetSurahCount(defaults.targetSurahCount);
+                  // also suggest teacher if not set or editing
+                  const suggestedTeacher = assignTeacherForClass(val, teachers);
+                  if (suggestedTeacher) {
+                    setTeacherId(suggestedTeacher);
+                  }
+                }}
+                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs font-semibold focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
               >
-                <option value="7A">Kelas 7A</option>
-                <option value="7B">Kelas 7B</option>
-                <option value="8A">Kelas 8A</option>
-                <option value="8B">Kelas 8B</option>
-                <option value="9A">Kelas 9A</option>
-                <option value="9B">Kelas 9B</option>
+                {SMPIA9_VALID_CLASSES.map((cls) => (
+                  <option key={cls} value={cls}>
+                    Kelas {cls} {cls.startsWith('7') ? '(Tingkat VII)' : cls.startsWith('8') ? '(Tingkat VIII)' : '(Tingkat IX)'}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

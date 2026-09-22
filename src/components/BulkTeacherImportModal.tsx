@@ -61,11 +61,11 @@ export const BulkTeacherImportModal: React.FC<BulkTeacherImportModalProps> = ({
   const handleLoadPasteExample = () => {
     const sample = 
 `Ustadz Ahmad Fauzi, S.Pd.I, Al-Hafizh	198507122010011005	L	7A, 7B	Tahsin & Tahfiz	0812-8877-6655
-Ustadz Muhammad Ridwan, Lc., M.Ag.	198903152014021008	L	7C, 7D, 8A	Tahsin & Tahfiz	0813-1122-3344
-Ustadzah Siti Fatimah, S.Ag., Al-Hafizhah	199104202016042003	P	8B, 8C, 8D	Tahsin & Tahfiz	0857-9988-1122
+Ustadz Muhammad Ridwan, Lc., M.Ag.	198903152014021008	L	7C, 8A	Tahsin & Tahfiz	0813-1122-3344
+Ustadzah Siti Fatimah, S.Ag., Al-Hafizhah	199104202016042003	P	8B, 8C	Tahsin & Tahfiz	0857-9988-1122
 Ustadz Hanif Al-Banjari, S.Q., M.Pd.	198711052012011004	L	9A, 9B	Tahfiz	0878-3344-5566
-Ustadzah Nurul Hidayah, S.Pd.I	199308142018032006	P	9C, 9D	Tahsin & Tahfiz	0821-4455-6677
-Ustadz Zulkifli Rahman, S.Th.I	199002182015021007	L	7A, 8A, 9A	Tahfiz	0819-7788-9900`;
+Ustadzah Nurul Hidayah, S.Pd.I	199308142018032006	P	7A, 8A, 9A	Tahsin & Tahfiz	0821-4455-6677
+Ustadz Zulkifli Rahman, S.Th.I	199002182015021007	L	7B, 8B, 9B	Tahfiz	0819-7788-9900`;
 
     setPasteText(sample);
     const rows = parseRawTextTeachers(sample);

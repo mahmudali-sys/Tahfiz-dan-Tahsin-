@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, GraduationCap } from 'lucide-react';
+import { X, Save, GraduationCap, AlertCircle, Check } from 'lucide-react';
 import { Teacher } from '../types';
+import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
 
 interface TeacherFormModalProps {
   isOpen: boolean;
@@ -42,10 +43,33 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
     }
   }, [teacherToEdit, isOpen]);
 
+  // Current selected classes parsed from text
+  const currentSelectedClasses = assignedClassesText
+    .split(',')
+    .map((c) => c.trim().toUpperCase())
+    .filter(Boolean);
+
+  const toggleClass = (cls: string) => {
+    if (currentSelectedClasses.includes(cls)) {
+      const remaining = currentSelectedClasses.filter((c) => c !== cls);
+      setAssignedClassesText(remaining.join(', '));
+    } else {
+      const updated = [...currentSelectedClasses, cls].sort();
+      setAssignedClassesText(updated.join(', '));
+    }
+  };
+
+  const hasInvalid9C = currentSelectedClasses.some((c) => c === '9C' || c.startsWith('9C'));
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       alert('Nama guru / Ustadz(ah) wajib diisi.');
+      return;
+    }
+
+    if (hasInvalid9C) {
+      alert('Perhatian: SMP Islam Al Azhar 9 hanya memiliki 8 rombel resmi (7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B). Kelas 9C tidak diperkenankan.');
       return;
     }
 
@@ -136,20 +160,56 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Kelas Bimbingan <span className="text-slate-400 font-normal">(Pisahkan dengan koma)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-semibold text-slate-700">
+                Kelas Bimbingan <span className="text-slate-400 font-normal">(8 Rombel Resmi SMPIA 9)</span>
+              </label>
+              <span className="text-[10px] text-slate-500">Klik chip untuk memilih</span>
+            </div>
+            
+            {/* Quick toggle chips for the 8 official classes */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {SMPIA9_VALID_CLASSES.map((cls) => {
+                const isSelected = currentSelectedClasses.includes(cls);
+                return (
+                  <button
+                    key={cls}
+                    type="button"
+                    onClick={() => toggleClass(cls)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3 h-3" />}
+                    <span>{cls}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             <input
               type="text"
               required
               value={assignedClassesText}
               onChange={(e) => setAssignedClassesText(e.target.value)}
               placeholder="7A, 7B, 8C"
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-semibold focus:outline-emerald-800 focus:bg-white"
+              className={`w-full bg-slate-50 border rounded-xl px-3 py-2 text-slate-900 font-semibold focus:outline-emerald-800 focus:bg-white ${
+                hasInvalid9C ? 'border-rose-400 bg-rose-50/50' : 'border-slate-300'
+              }`}
             />
-            <span className="text-[10px] text-slate-400 mt-1 block">
-              Contoh format: 7A, 7B, 8A, 9B
-            </span>
+            
+            {hasInvalid9C ? (
+              <div className="flex items-center gap-1 text-[11px] text-rose-600 font-semibold mt-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Peringatan: Kelas 9C tidak valid untuk SMPIA 9 (Hanya 8 rombel: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B).</span>
+              </div>
+            ) : (
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Format: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

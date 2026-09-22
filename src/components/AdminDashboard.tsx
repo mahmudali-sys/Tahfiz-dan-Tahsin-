@@ -30,6 +30,7 @@ import { BulkStudentImportModal } from './BulkStudentImportModal';
 import { BulkTeacherImportModal } from './BulkTeacherImportModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { TahfizSurahRecord } from '../types';
+import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
 
 interface AdminDashboardProps {
   students: Student[];
@@ -191,8 +192,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Extract unique classes dynamically
-  const uniqueClasses = Array.from(new Set(students.map((s) => s.className))).sort();
+  // Extract unique classes dynamically, ensuring all 8 official classes are always present
+  const uniqueClasses = Array.from(new Set([...SMPIA9_VALID_CLASSES, ...students.map((s) => s.className)])).sort();
 
   // Mass Print / Download
   const handleDownloadAllClassPDF = () => {

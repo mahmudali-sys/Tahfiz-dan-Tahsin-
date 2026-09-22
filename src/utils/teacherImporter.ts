@@ -12,7 +12,7 @@ export interface ParsedTeacherRow {
   validationError?: string;
 }
 
-// Preset roster of Asatidz / Guru Tahsin & Tahfiz SMP Islam Al Azhar 9 Bekasi
+// Preset roster of Asatidz / Guru Tahsin & Tahfiz SMP Islam Al Azhar 9 Bekasi (8 Rombel Resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B)
 export const SMPIA9_TEACHER_ROSTER: Omit<Teacher, 'id'>[] = [
   {
     name: 'Ustadz Ahmad Fauzi, S.Pd.I, Al-Hafizh',
@@ -26,7 +26,7 @@ export const SMPIA9_TEACHER_ROSTER: Omit<Teacher, 'id'>[] = [
     name: 'Ustadz Muhammad Ridwan, Lc., M.Ag.',
     nip: '198903152014021008',
     gender: 'L',
-    assignedClasses: ['7C', '7D', '8A'],
+    assignedClasses: ['7C', '8A'],
     specialty: 'Tahsin & Tahfiz',
     phone: '0813-1122-3344',
   },
@@ -34,7 +34,7 @@ export const SMPIA9_TEACHER_ROSTER: Omit<Teacher, 'id'>[] = [
     name: 'Ustadzah Siti Fatimah, S.Ag., Al-Hafizhah',
     nip: '199104202016042003',
     gender: 'P',
-    assignedClasses: ['8B', '8C', '8D'],
+    assignedClasses: ['8B', '8C'],
     specialty: 'Tahsin & Tahfiz',
     phone: '0857-9988-1122',
   },
@@ -50,7 +50,7 @@ export const SMPIA9_TEACHER_ROSTER: Omit<Teacher, 'id'>[] = [
     name: 'Ustadzah Nurul Hidayah, S.Pd.I',
     nip: '199308142018032006',
     gender: 'P',
-    assignedClasses: ['9C', '9D'],
+    assignedClasses: ['7A', '8A', '9A'],
     specialty: 'Tahsin & Tahfiz',
     phone: '0821-4455-6677',
   },
@@ -58,7 +58,7 @@ export const SMPIA9_TEACHER_ROSTER: Omit<Teacher, 'id'>[] = [
     name: 'Ustadz Zulkifli Rahman, S.Th.I',
     nip: '199002182015021007',
     gender: 'L',
-    assignedClasses: ['7A', '8A', '9A'],
+    assignedClasses: ['7B', '8B', '9B'],
     specialty: 'Tahfiz',
     phone: '0819-7788-9900',
   },
@@ -315,7 +315,7 @@ export function downloadTeacherExcelTemplate(): void {
       'Nama Lengkap & Gelar Guru': 'Ustadz Hanif Al-Banjari, S.Q., M.Pd.',
       'NIP': '198711052012011004',
       'Panggilan / Gender (L/P)': 'L',
-      'Kelas Bimbingan': '9A, 9B, 9C',
+      'Kelas Bimbingan': '9A, 9B',
       'Spesialisasi': 'Tahfiz',
       'No WhatsApp': '0878-3344-5566',
     },

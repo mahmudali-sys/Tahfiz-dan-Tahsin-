@@ -534,13 +534,21 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
             onChange={(e) => setSelectedClass(e.target.value)}
             className="bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold focus:ring-2 focus:ring-emerald-600 cursor-pointer"
           >
-            <option value="7B">Kelas 7B (Sesuai File Excel)</option>
-            <option value="7A">Kelas 7A</option>
-            <option value="8A">Kelas 8A</option>
-            <option value="8B">Kelas 8B</option>
-            <option value="9A">Kelas 9A</option>
-            <option value="9B">Kelas 9B</option>
             <option value="all">Semua Kelas ({students.length} Santri)</option>
+            <optgroup label="Kelas 7 (Target Juz 30)">
+              <option value="7A">Kelas 7A</option>
+              <option value="7B">Kelas 7B (Sesuai File Excel)</option>
+              <option value="7C">Kelas 7C</option>
+            </optgroup>
+            <optgroup label="Kelas 8 (Target Juz 29 & 30)">
+              <option value="8A">Kelas 8A</option>
+              <option value="8B">Kelas 8B</option>
+              <option value="8C">Kelas 8C</option>
+            </optgroup>
+            <optgroup label="Kelas 9 (Target Juz 28, 29, 30)">
+              <option value="9A">Kelas 9A</option>
+              <option value="9B">Kelas 9B</option>
+            </optgroup>
           </select>
           <span className="text-xs font-medium text-slate-500 ml-1">
             {filteredStudents.length} santri ditampilkan

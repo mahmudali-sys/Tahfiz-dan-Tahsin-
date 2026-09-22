@@ -1,6 +1,20 @@
 import * as XLSX from 'xlsx';
 import { Student, Teacher } from '../types';
 
+// The 8 official classes at SMP Islam Al Azhar 9 Bekasi
+export const SMPIA9_VALID_CLASSES = [
+  '7A', '7B', '7C',
+  '8A', '8B', '8C',
+  '9A', '9B'
+] as const;
+
+export type SMPIA9Class = typeof SMPIA9_VALID_CLASSES[number];
+
+export function isSmpia9ClassValid(className: string): boolean {
+  if (!className) return false;
+  return (SMPIA9_VALID_CLASSES as readonly string[]).includes(className.trim().toUpperCase());
+}
+
 export interface ParsedStudentRow {
   name: string;
   nisn: string;
@@ -56,6 +70,130 @@ export function generateAutoNis(className: string, index: number): string {
   return `${yearPrefix}${padIndex}`;
 }
 
+// Robust parse of Gender values from any cell/token
+export function parseGenderValue(val: any): 'L' | 'P' | null {
+  if (val === undefined || val === null) return null;
+  const str = String(val).trim().toUpperCase();
+  if (!str) return null;
+
+  // Female check
+  if (
+    str === 'P' ||
+    str === 'PR' ||
+    str === 'PEREMPUAN' ||
+    str === 'WANITA' ||
+    str === 'AKHWAT' ||
+    str === 'F' ||
+    str === 'FEMALE' ||
+    str === 'GIRL' ||
+    str === '2'
+  ) {
+    return 'P';
+  }
+
+  // Male check
+  if (
+    str === 'L' ||
+    str === 'LK' ||
+    str === 'LAKI-LAKI' ||
+    str === 'LAKI - LAKI' ||
+    str === 'LAKI LAKI' ||
+    str === 'LAKILAKI' ||
+    str === 'PRIA' ||
+    str === 'IKHWAN' ||
+    str === 'M' ||
+    str === 'MALE' ||
+    str === 'BOY' ||
+    str === '1'
+  ) {
+    return 'L';
+  }
+
+  return null;
+}
+
+// Normalize various class inputs: "7-A", "Kelas 7A", "VII A", "7a", "IX A" -> "7A", "9A"
+export function normalizeClassName(input: string): string {
+  if (!input) return '';
+  let s = input
+    .trim()
+    .toUpperCase()
+    .replace(/KELAS\s*/i, '')
+    .replace(/ROMBEL\s*/i, '')
+    .replace(/TINGKAT\s*/i, '')
+    .replace(/RUANG\s*/i, '')
+    .replace(/\(SEMBILAN\)/i, '')
+    .replace(/\(DELAPAN\)/i, '')
+    .replace(/\(TUJUH\)/i, '')
+    .trim();
+
+  // Roman numeral conversion
+  s = s.replace(/^VII[\s\-_]*/i, '7');
+  s = s.replace(/^VIII[\s\-_]*/i, '8');
+  s = s.replace(/^IX[\s\-_]*/i, '9');
+
+  // Strip hyphens or spaces like "7-A" -> "7A", "7 A" -> "7A"
+  s = s.replace(/[\s\-_]/g, '');
+
+  if (/^[789][A-Z]$/.test(s)) {
+    return s;
+  }
+  if (/^[789]$/.test(s)) {
+    return `${s}A`;
+  }
+  return s;
+}
+
+function cleanName(name: string): string {
+  return name
+    .trim()
+    .replace(/^[\d\.\-\)\s]+/, '') // remove leading numbers like "1. Ahmad"
+    .trim();
+}
+
+function guessGenderFromName(name: string): 'L' | 'P' {
+  const lower = name.toLowerCase();
+  if (
+    lower.includes('putri') ||
+    lower.includes('aisyah') ||
+    lower.includes('fatimah') ||
+    lower.includes('khadijah') ||
+    lower.includes('zahra') ||
+    lower.includes('nabila') ||
+    lower.includes('nur') ||
+    lower.includes('siti') ||
+    lower.includes('salma') ||
+    lower.includes('maryam') ||
+    lower.includes('shafiyyah') ||
+    lower.includes('annisa') ||
+    lower.includes('hafizhah') ||
+    lower.includes('nayla') ||
+    lower.includes('safira') ||
+    lower.includes('farah') ||
+    lower.includes('syifa') ||
+    lower.includes('humaira') ||
+    lower.includes('yasmin') ||
+    lower.includes('aqila') ||
+    lower.includes('lathifah') ||
+    lower.includes('azzahra') ||
+    lower.includes('salsabila') ||
+    lower.includes('anindya') ||
+    lower.includes('muthi') ||
+    lower.includes('mutia') ||
+    lower.includes('adinda') ||
+    lower.includes('tiara') ||
+    lower.includes('dewi') ||
+    lower.includes('cantika')
+  ) {
+    return 'P';
+  }
+  return 'L';
+}
+
+function generateFallbackNisn(index: number): string {
+  return `011${Math.floor(2890000 + index * 137).toString().padStart(7, '0')}`;
+}
+
 // Parse plain text (copy-pasted from Excel, TSV, CSV, or WhatsApp lines)
 export function parseRawTextStudents(text: string): ParsedStudentRow[] {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -63,14 +201,15 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const lowerLine = line.toLowerCase();
 
     // Check if header line
-    const lowerLine = line.toLowerCase();
     if (
-      (lowerLine.includes('nama') && lowerLine.includes('nisn')) ||
-      (lowerLine.includes('nama') && lowerLine.includes('kelas')) ||
+      (lowerLine.includes('nama') && (lowerLine.includes('nisn') || lowerLine.includes('kelas') || lowerLine.includes('kelamin') || lowerLine.includes('jk'))) ||
       lowerLine.startsWith('no\t') ||
-      lowerLine.startsWith('no,\t')
+      lowerLine.startsWith('no,\t') ||
+      lowerLine.startsWith('no;') ||
+      lowerLine.startsWith('no|')
     ) {
       continue; // skip header
     }
@@ -81,89 +220,117 @@ export function parseRawTextStudents(text: string): ParsedStudentRow[] {
       tokens = line.split('\t').map((t) => t.trim());
     } else if (line.includes(';')) {
       tokens = line.split(';').map((t) => t.trim());
-    } else if (line.includes(',')) {
-      tokens = line.split(',').map((t) => t.trim());
     } else if (line.includes('|')) {
       tokens = line.split('|').map((t) => t.trim());
+    } else if (line.includes(',')) {
+      tokens = line.split(',').map((t) => t.trim());
     } else {
       tokens = line.split(/\s{2,}/).map((t) => t.trim());
     }
 
-    // Filter out leading numbering like "1.", "1"
-    if (tokens.length > 0 && /^\d+[\.\)]?$/.test(tokens[0])) {
+    // Filter out leading numbering like "1.", "1)", "1"
+    if (tokens.length > 1 && /^\d+[\.\)]?$/.test(tokens[0])) {
       tokens.shift();
     }
 
-    if (tokens.length < 2) continue;
+    if (tokens.length < 1) continue;
 
-    // Detect fields intelligently
-    // Common formats:
-    // Format A: [Nama, NISN, Kelas, (NIS), (JK), (NoHP)]
-    // Format B: [NISN, Nama, Kelas]
-    // Format C: [Nama, Kelas, NISN]
-    let name = '';
-    let nisn = '';
-    let className = '';
-    let nis = '';
-    let gender: 'L' | 'P' = 'L';
-    let parentPhone = '';
+    let detectedGender: 'L' | 'P' | null = null;
+    let detectedClass = '';
+    let detectedNisn = '';
+    let detectedNis = '';
+    let detectedPhone = '';
+    const remainingTokens: string[] = [];
 
-    // Check which token looks like NISN (approx 10 digits)
-    const token0IsNum = /^\d{8,12}$/.test(tokens[0].replace(/\D/g, ''));
-    const token1IsNum = tokens[1] && /^\d{8,12}$/.test(tokens[1].replace(/\D/g, ''));
+    // Analyze each token intelligently
+    for (let j = 0; j < tokens.length; j++) {
+      const tok = tokens[j];
+      if (!tok) continue;
 
-    if (token0IsNum && !token1IsNum) {
-      // Format B: [NISN, Nama, Kelas]
-      nisn = tokens[0].replace(/\D/g, '');
-      name = tokens[1] || '';
-      className = tokens[2] || '';
-      nis = tokens[3] || '';
-    } else if (!token0IsNum && token1IsNum) {
-      // Format A: [Nama, NISN, Kelas]
-      name = tokens[0] || '';
-      nisn = tokens[1].replace(/\D/g, '');
-      className = tokens[2] || '';
-      nis = tokens[3] || '';
-    } else {
-      // Fallback: guess by order
-      name = tokens[0] || '';
-      // Look through tokens for class name like 7A, 8B, 9C, VII-A
-      for (let j = 1; j < tokens.length; j++) {
-        const tok = tokens[j];
-        if (/^[789][A-Za-z]/.test(tok) || /^(VII|VIII|IX)/i.test(tok) || /kelas\s*[789]/i.test(tok)) {
-          className = tok;
-        } else if (/^\d{8,12}$/.test(tok.replace(/\D/g, ''))) {
-          nisn = tok.replace(/\D/g, '');
-        } else if (/^(L|P|Ikhwan|Akhwat|Laki-laki|Perempuan)$/i.test(tok)) {
-          gender = /^(P|Akhwat|Perempuan)$/i.test(tok) ? 'P' : 'L';
+      // 1. Gender check: directly matching L/P, LK/PR, etc.
+      if (detectedGender === null) {
+        const g = parseGenderValue(tok);
+        if (g !== null) {
+          detectedGender = g;
+          continue;
         }
       }
-      if (!className && tokens[2]) className = tokens[2];
-      if (!nisn && tokens[1]) nisn = tokens[1].replace(/\D/g, '');
+
+      // 2. Class check (like 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B, 9C, VII-A, etc.)
+      if (!detectedClass) {
+        const normalized = normalizeClassName(tok);
+        if (
+          isSmpia9ClassValid(normalized) ||
+          normalized === '9C' ||
+          /^[789][A-Z]$/.test(normalized) ||
+          /^(VII|VIII|IX)/i.test(tok) ||
+          /kelas\s*[789]/i.test(tok) ||
+          /rombel\s*[789]/i.test(tok)
+        ) {
+          detectedClass = normalized;
+          continue;
+        }
+      }
+
+      // 3. Phone check (08... or +62...)
+      if (!detectedPhone && /^(08|\+?62)\d{8,12}$/.test(tok.replace(/[\s\-\(\)]/g, ''))) {
+        detectedPhone = tok;
+        continue;
+      }
+
+      // 4. NISN check (9-12 digits)
+      const digitsOnly = tok.replace(/\D/g, '');
+      if (!detectedNisn && digitsOnly.length >= 9 && digitsOnly.length <= 12) {
+        detectedNisn = digitsOnly;
+        continue;
+      }
+
+      // 5. NIS check (school code format like 242507001 or 4309-...)
+      if (!detectedNis && (/^\d{4,8}$/.test(digitsOnly) || /^\d{4}[\-_]\d+/.test(tok))) {
+        detectedNis = tok;
+        continue;
+      }
+
+      remainingTokens.push(tok);
     }
 
-    // Normalize class name
-    className = normalizeClassName(className);
-
-    // Guess gender from name if not specified
-    if (!gender) {
-      gender = guessGenderFromName(name);
+    // Name is what remains
+    let name = cleanName(remainingTokens.join(' ').trim());
+    if (!name && tokens.length > 0) {
+      name = cleanName(tokens[0]);
     }
 
-    const isValid = name.trim().length > 1 && className.length > 0;
-    const validationError = !name.trim()
-      ? 'Nama tidak boleh kosong'
-      : !className
-      ? 'Kelas tidak valid (wajib 7A-9B)'
-      : undefined;
+    // Final gender: if user supplied gender, use it strictly. Fallback to name guess only if absent.
+    const finalGender: 'L' | 'P' = detectedGender !== null ? detectedGender : guessGenderFromName(name);
+
+    // Final class resolution & validation
+    const finalClass = detectedClass || '';
+    const is9C = finalClass === '9C';
+    const isClassAllowed = isSmpia9ClassValid(finalClass);
+
+    let isValid = true;
+    let validationError: string | undefined = undefined;
+
+    if (!name || name.length < 2) {
+      isValid = false;
+      validationError = 'Nama santri tidak boleh kosong';
+    } else if (is9C) {
+      isValid = false;
+      validationError = 'Kelas 9C tidak terdaftar di SMPIA 9. Pilihan rombel resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.';
+    } else if (!isClassAllowed) {
+      isValid = false;
+      validationError = finalClass
+        ? `Kelas "${finalClass}" tidak valid. Pilihan kelas resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.`
+        : 'Kelas wajib diisi (pilih dari 8 kelas resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B)';
+    }
 
     results.push({
-      name: cleanName(name),
-      nisn: nisn || generateFallbackNisn(i),
-      className: className || '7A',
-      nis: nis || '',
-      gender,
-      parentPhone,
+      name,
+      nisn: detectedNisn || generateFallbackNisn(i),
+      className: finalClass || '7A',
+      nis: detectedNis || '',
+      gender: finalGender,
+      parentPhone: detectedPhone,
       isValid,
       validationError,
     });
@@ -196,15 +363,27 @@ export function parseExcelStudents(buffer: ArrayBuffer): ParsedStudentRow[] {
 
     for (let c = 0; c < row.length; c++) {
       const cell = String(row[c] || '').trim().toLowerCase();
-      if (cell.includes('nama') || cell === 'name') nameCol = c;
+      if (cell.includes('nama') || cell === 'name' || cell.includes('santri') || cell.includes('murid') || cell.includes('siswa')) nameCol = c;
       if (cell.includes('nisn')) nisnCol = c;
-      if (cell.includes('kelas') || cell.includes('rombel') || cell === 'class') classCol = c;
-      if (cell === 'nis' || cell.includes('induk')) nisCol = c;
-      if (cell === 'jk' || cell.includes('kelamin') || cell === 'gender') genderCol = c;
-      if (cell.includes('hp') || cell.includes('telepon') || cell.includes('telp') || cell.includes('wali')) phoneCol = c;
+      if (cell.includes('kelas') || cell.includes('rombel') || cell === 'class' || cell.includes('tingkat') || cell.includes('ruang') || cell === 'kls') classCol = c;
+      if (cell === 'nis' || cell.includes('induk') || cell.includes('no_induk') || cell.includes('no induk')) nisCol = c;
+      if (
+        cell === 'jk' || 
+        cell === 'j.k' || 
+        cell === 'l/p' || 
+        cell === 'lp' || 
+        cell === 'l / p' || 
+        cell.includes('kelamin') || 
+        cell === 'gender' || 
+        cell.includes('sex') || 
+        cell.includes('jns')
+      ) {
+        genderCol = c;
+      }
+      if (cell.includes('hp') || cell.includes('telepon') || cell.includes('telp') || cell.includes('wa') || cell.includes('wali') || cell.includes('kontak') || cell.includes('phone')) phoneCol = c;
     }
 
-    if (nameCol !== -1 && (nisnCol !== -1 || classCol !== -1)) {
+    if (nameCol !== -1 && (nisnCol !== -1 || classCol !== -1 || genderCol !== -1)) {
       headerIndex = r;
       break;
     }
@@ -221,92 +400,73 @@ export function parseExcelStudents(buffer: ArrayBuffer): ParsedStudentRow[] {
     const rawNisn = nisnCol >= 0 ? String(row[nisnCol] || '') : String(row[1] || '');
     const rawClass = classCol >= 0 ? String(row[classCol] || '') : String(row[2] || '');
     const rawNis = nisCol >= 0 ? String(row[nisCol] || '') : '';
-    const rawGender = genderCol >= 0 ? String(row[genderCol] || '') : '';
     const rawPhone = phoneCol >= 0 ? String(row[phoneCol] || '') : '';
 
     if (!rawName.trim()) continue;
 
-    let gender: 'L' | 'P' = 'L';
-    if (/^(P|Akhwat|Perempuan|Wanita)$/i.test(rawGender.trim())) {
-      gender = 'P';
-    } else if (/^(L|Ikhwan|Laki-laki|Pria)$/i.test(rawGender.trim())) {
-      gender = 'L';
-    } else {
-      gender = guessGenderFromName(rawName);
+    // Determine Gender accurately
+    let detectedGender: 'L' | 'P' | null = null;
+    if (genderCol >= 0 && row[genderCol] !== undefined) {
+      detectedGender = parseGenderValue(row[genderCol]);
+    }
+    // If not found from designated column, scan entire row for gender marker
+    if (detectedGender === null) {
+      for (let c = 0; c < row.length; c++) {
+        const g = parseGenderValue(row[c]);
+        if (g !== null) {
+          detectedGender = g;
+          break;
+        }
+      }
+    }
+    const finalGender: 'L' | 'P' = detectedGender !== null ? detectedGender : guessGenderFromName(rawName);
+
+    // Class extraction & normalization
+    let normalizedClass = normalizeClassName(rawClass);
+    if (!normalizedClass) {
+      // scan row for a class pattern
+      for (let c = 0; c < row.length; c++) {
+        const testNorm = normalizeClassName(String(row[c] || ''));
+        if (isSmpia9ClassValid(testNorm) || testNorm === '9C') {
+          normalizedClass = testNorm;
+          break;
+        }
+      }
     }
 
     const cleanedNisn = rawNisn.replace(/\D/g, '');
-    const normalizedClass = normalizeClassName(rawClass);
+    const is9C = normalizedClass === '9C';
+    const isClassAllowed = isSmpia9ClassValid(normalizedClass);
+
+    let isValid = true;
+    let validationError: string | undefined = undefined;
+
+    if (rawName.trim().length < 2) {
+      isValid = false;
+      validationError = 'Nama murid tidak boleh kosong';
+    } else if (is9C) {
+      isValid = false;
+      validationError = 'Kelas 9C tidak terdaftar di SMPIA 9. Pilihan rombel resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.';
+    } else if (!isClassAllowed) {
+      isValid = false;
+      validationError = normalizedClass
+        ? `Kelas "${normalizedClass}" tidak valid. Pilihan kelas resmi hanya 8 kelas: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B.`
+        : 'Kelas wajib diisi (pilih dari 8 kelas resmi: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B)';
+    }
 
     results.push({
       name: cleanName(rawName),
       nisn: cleanedNisn || generateFallbackNisn(r),
       className: normalizedClass || '7A',
       nis: rawNis.trim(),
-      gender,
+      gender: finalGender,
       parentPhone: rawPhone.trim(),
-      isValid: rawName.trim().length > 1,
+      isValid,
+      validationError,
     });
   }
 
   return results;
-}
-
-// Normalize various class inputs: "7-A", "Kelas 7A", "VII A", "7a" -> "7A"
-export function normalizeClassName(input: string): string {
-  if (!input) return '7A';
-  let s = input.trim().toUpperCase().replace(/KELAS\s*/i, '').replace(/ROMBEL\s*/i, '').trim();
-
-  // Roman numeral conversion
-  s = s.replace(/^VII[\s\-_]*/i, '7');
-  s = s.replace(/^VIII[\s\-_]*/i, '8');
-  s = s.replace(/^IX[\s\-_]*/i, '9');
-
-  // Strip hyphens or spaces like "7-A" -> "7A"
-  s = s.replace(/[\s\-_]/g, '');
-
-  if (/^[789][A-Z]$/.test(s)) {
-    return s;
-  }
-  if (/^[789]$/.test(s)) {
-    return `${s}A`;
-  }
-  return s || '7A';
-}
-
-function cleanName(name: string): string {
-  return name
-    .trim()
-    .replace(/^[\d\.\-\)\s]+/, '') // remove leading numbers like "1. Ahmad"
-    .trim();
-}
-
-function guessGenderFromName(name: string): 'L' | 'P' {
-  const lower = name.toLowerCase();
-  if (
-    lower.includes('putri') ||
-    lower.includes('aisyah') ||
-    lower.includes('fatimah') ||
-    lower.includes('khadijah') ||
-    lower.includes('zahra') ||
-    lower.includes('nabila') ||
-    lower.includes('nur') ||
-    lower.includes('siti') ||
-    lower.includes('salma') ||
-    lower.includes('maryam') ||
-    lower.includes('shafiyyah') ||
-    lower.includes('annisa') ||
-    lower.includes('hafizhah') ||
-    lower.includes('nayla') ||
-    lower.includes('safira')
-  ) {
-    return 'P';
-  }
-  return 'L';
-}
-
-function generateFallbackNisn(index: number): string {
-  return `011${Math.floor(2890000 + index * 137).toString().padStart(7, '0')}`;
 }
 
 // Download Excel Template for SMP Islam Al Azhar 9 Bekasi
@@ -329,6 +489,22 @@ export function downloadExcelTemplate(): void {
       'No HP Orang Tua / Wali': '0813-8899-4411',
     },
     {
+      'Nama Santri (Wajib)': 'Rizky Ramadhan Saputra',
+      'NISN (10 Digit)': '0112894011',
+      'Kelas (7A-9B)': '7B',
+      'Jenis Kelamin (L/P)': 'L',
+      'NIS (Opsional)': '242507011',
+      'No HP Orang Tua / Wali': '0858-9900-1122',
+    },
+    {
+      'Nama Santri (Wajib)': 'Annisa Zahra Nuraini',
+      'NISN (10 Digit)': '0112894021',
+      'Kelas (7A-9B)': '7C',
+      'Jenis Kelamin (L/P)': 'P',
+      'NIS (Opsional)': '242507021',
+      'No HP Orang Tua / Wali': '0812-4455-6677',
+    },
+    {
       'Nama Santri (Wajib)': 'Ibrahim Hanif Al-Farisi',
       'NISN (10 Digit)': '0103456003',
       'Kelas (7A-9B)': '8A',
@@ -343,6 +519,14 @@ export function downloadExcelTemplate(): void {
       'Jenis Kelamin (L/P)': 'P',
       'NIS (Opsional)': '232408004',
       'No HP Orang Tua / Wali': '0821-3344-5566',
+    },
+    {
+      'Nama Santri (Wajib)': 'Fajar Siddiq Pratama',
+      'NISN (10 Digit)': '0103456021',
+      'Kelas (7A-9B)': '8C',
+      'Jenis Kelamin (L/P)': 'L',
+      'NIS (Opsional)': '232408021',
+      'No HP Orang Tua / Wali': '0877-5566-7788',
     },
     {
       'Nama Santri (Wajib)': 'Zaid bin Haritsah Al-Anshari',
@@ -385,9 +569,11 @@ export function downloadCsvTemplate(): void {
     'Nama Santri,NISN,Kelas,Jenis Kelamin,NIS,No HP Wali\n' +
     'Muhammad Fatih Al-Ayyubi,0112894001,7A,L,242507001,0812-1002-3344\n' +
     'Aisyah Humaira Putri,0112894002,7A,P,242507002,0813-8899-4411\n' +
-    'Rizky Ramadhan Saputra,0112894015,7B,L,242507015,0857-1234-5678\n' +
+    'Rizky Ramadhan Saputra,0112894011,7B,L,242507011,0858-9900-1122\n' +
+    'Annisa Zahra Nuraini,0112894021,7C,P,242507021,0812-4455-6677\n' +
     'Ibrahim Hanif Al-Farisi,0103456003,8A,L,232408003,0819-0987-6543\n' +
     'Khadijah Nabila Zahir,0103456004,8B,P,232408004,0821-3344-5566\n' +
+    'Fajar Siddiq Pratama,0103456021,8C,L,232408021,0877-5566-7788\n' +
     'Zaid bin Haritsah Al-Anshari,0098765001,9A,L,222309001,0878-1122-3344\n' +
     'Maryam Sholihatul Jannah,0098765002,9B,P,222309002,0812-9988-7766\n';
 
@@ -401,9 +587,9 @@ export function downloadCsvTemplate(): void {
   document.body.removeChild(link);
 }
 
-// Preset complete roster for SMP Islam Al Azhar 9 Bekasi (Grade 7, 8, 9)
+// Preset complete roster for SMP Islam Al Azhar 9 Bekasi (8 official classes: 7A, 7B, 7C, 8A, 8B, 8C, 9A, 9B)
 export const SMPIA9_FULL_ROSTER: Omit<Student, 'id' | 'teacherId'>[] = [
-  // KELAS 7A (Ikhwan/Campur - Target: Juz 30)
+  // KELAS 7A (Target: Juz 30)
   {
     nis: '242507001',
     nisn: '0112894001',
@@ -507,6 +693,48 @@ export const SMPIA9_FULL_ROSTER: Omit<Student, 'id' | 'teacherId'>[] = [
     parentPhone: '0819-2233-4455',
   },
 
+  // KELAS 7C (Target: Juz 30)
+  {
+    nis: '242507021',
+    nisn: '0112894021',
+    name: 'Muhammad Yusuf Al-Ayyubi',
+    gender: 'L',
+    className: '7C',
+    targetJuz: 'Juz 30 (Tuntas Mutqin)',
+    targetSurahCount: 37,
+    parentPhone: '0812-3322-1100',
+  },
+  {
+    nis: '242507022',
+    nisn: '0112894022',
+    name: 'Rayhan Ghazi Al-Mubarak',
+    gender: 'L',
+    className: '7C',
+    targetJuz: 'Juz 30 (Tuntas Mutqin)',
+    targetSurahCount: 37,
+    parentPhone: '0813-5566-7788',
+  },
+  {
+    nis: '242507023',
+    nisn: '0112894023',
+    name: 'Annisa Zahra Nuraini',
+    gender: 'P',
+    className: '7C',
+    targetJuz: 'Juz 30 (Tuntas Mutqin)',
+    targetSurahCount: 37,
+    parentPhone: '0812-4455-6677',
+  },
+  {
+    nis: '242507024',
+    nisn: '0112894024',
+    name: 'Muthia Tsabita Wardani',
+    gender: 'P',
+    className: '7C',
+    targetJuz: 'Juz 30 (Tuntas Mutqin)',
+    targetSurahCount: 37,
+    parentPhone: '0878-9988-1122',
+  },
+
   // KELAS 8A (Target: Juz 29 & 30)
   {
     nis: '232408001',
@@ -599,6 +827,48 @@ export const SMPIA9_FULL_ROSTER: Omit<Student, 'id' | 'teacherId'>[] = [
     targetJuz: 'Juz 29 & 30',
     targetSurahCount: 48,
     parentPhone: '0812-5566-7744',
+  },
+
+  // KELAS 8C (Target: Juz 29 & 30)
+  {
+    nis: '232408021',
+    nisn: '0103456021',
+    name: 'Fajar Siddiq Pratama',
+    gender: 'L',
+    className: '8C',
+    targetJuz: 'Juz 29 & 30',
+    targetSurahCount: 48,
+    parentPhone: '0877-5566-7788',
+  },
+  {
+    nis: '232408022',
+    nisn: '0103456022',
+    name: 'Dzaky Naufal Hendrawan',
+    gender: 'L',
+    className: '8C',
+    targetJuz: 'Juz 29 & 30',
+    targetSurahCount: 48,
+    parentPhone: '0813-8899-0011',
+  },
+  {
+    nis: '232408023',
+    nisn: '0103456023',
+    name: 'Tiara Dewi Maharani',
+    gender: 'P',
+    className: '8C',
+    targetJuz: 'Juz 29 & 30',
+    targetSurahCount: 48,
+    parentPhone: '0856-1122-3344',
+  },
+  {
+    nis: '232408024',
+    nisn: '0103456024',
+    name: 'Adinda Salsabila Fitri',
+    gender: 'P',
+    className: '8C',
+    targetJuz: 'Juz 29 & 30',
+    targetSurahCount: 48,
+    parentPhone: '0819-2233-4411',
   },
 
   // KELAS 9A (Target: Juz 28, 29, 30)
