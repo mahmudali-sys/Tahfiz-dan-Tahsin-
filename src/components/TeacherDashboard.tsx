@@ -13,7 +13,8 @@ import {
   Award,
   Sparkles,
   FileSpreadsheet,
-  ChevronRight
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 import { Student, Teacher, StudentReportData, SchoolSettings } from '../types';
 import { getPredicate, getPredicateColor } from '../data/quranData';
@@ -22,6 +23,7 @@ import { GradeInputModal } from './GradeInputModal';
 import { RapotPreviewModal } from './RapotPreviewModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { BulkStudentImportModal } from './BulkStudentImportModal';
+import { AttendanceAndHafalanModal } from './AttendanceAndHafalanModal';
 import { TahfizSurahRecord } from '../types';
 import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
 
@@ -54,6 +56,52 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [selectedStudentForPreview, setSelectedStudentForPreview] = useState<StudentReportData | null>(null);
   const [simakanStudent, setSimakanStudent] = useState<Student | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [modalInitialStudentId, setModalInitialStudentId] = useState<string | undefined>(undefined);
+
+  const handleSaveAttendanceAndSetoran = (params: {
+    studentId: string;
+    attendanceDate: string;
+    attendanceStatus: 'H' | 'S' | 'I' | 'A';
+    attendanceNote: string;
+    hafalanRecord?: TahfizSurahRecord;
+  }) => {
+    const student = students.find((s) => s.id === params.studentId);
+    const curReport = reports[params.studentId];
+    if (student && curReport) {
+      let updatedRecords = curReport.tahfizRecords;
+      let uniqueSurahsCount = curReport.summaryHafalan.totalSurahLulus;
+      let totalAyat = curReport.summaryHafalan.totalAyatHafal;
+      let completionPct = curReport.summaryHafalan.completionPercentage;
+
+      if (params.hafalanRecord) {
+        const filtered = curReport.tahfizRecords.filter((r) => r.surahNumber !== params.hafalanRecord!.surahNumber);
+        updatedRecords = [params.hafalanRecord, ...filtered];
+        totalAyat = updatedRecords.reduce((acc, r) => acc + (r.ayatTo - r.ayatFrom + 1), 0);
+        const uniqueSurahs = Array.from(new Set(updatedRecords.map((r) => r.surahNumber)));
+        uniqueSurahsCount = uniqueSurahs.length;
+        const targetCount = student.targetSurahCount || 37;
+        completionPct = Math.min(100, Math.round((uniqueSurahsCount / targetCount) * 100));
+      }
+
+      const updatedReport: StudentReportData = {
+        ...curReport,
+        tahfizRecords: updatedRecords,
+        summaryHafalan: {
+          ...curReport.summaryHafalan,
+          totalSurahLulus: uniqueSurahsCount,
+          totalAyatHafal: totalAyat,
+          completionPercentage: completionPct,
+        },
+        adab: {
+          ...curReport.adab,
+          generalNotes: params.attendanceNote || curReport.adab.generalNotes,
+        },
+      };
+
+      onUpdateReport(params.studentId, updatedReport);
+    }
+  };
 
   const handleSaveSimakanResult = (newRecord: TahfizSurahRecord) => {
     if (!simakanStudent) return;
@@ -213,6 +261,18 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => {
+              setModalInitialStudentId(undefined);
+              setIsAttendanceModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+            title="Buka form input tanggal kehadiran dan tanggal murid menghafal / setoran hafalan"
+          >
+            <Calendar className="w-4 h-4 text-blue-200" />
+            <span>Form Kehadiran & Setoran</span>
+          </button>
+
           {onOpenProcessingMenu && (
             <button
               onClick={() => onOpenProcessingMenu(selectedClass !== 'all' ? selectedClass : '7B')}
@@ -383,6 +443,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     {/* Aksi Guru */}
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
+                        {/* Form Tanggal Kehadiran & Setoran Button */}
+                        <button
+                          onClick={() => {
+                            setModalInitialStudentId(student.id);
+                            setIsAttendanceModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-lg shadow-xs transition-colors cursor-pointer text-xs"
+                          title="Input tanggal kehadiran dan tanggal setoran hafalan santri ini"
+                        >
+                          <Calendar className="w-3.5 h-3.5 text-blue-200" />
+                          <span>Absen & Setor</span>
+                        </button>
+
                         {/* Simak Al-Qur'an Live Button */}
                         <button
                           onClick={() => setSimakanStudent(student)}
@@ -486,6 +559,20 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           }}
         />
       )}
+
+      {/* Attendance & Hafalan Date Modal */}
+      <AttendanceAndHafalanModal
+        isOpen={isAttendanceModalOpen}
+        onClose={() => {
+          setIsAttendanceModalOpen(false);
+          setModalInitialStudentId(undefined);
+        }}
+        students={filteredStudents.length > 0 ? filteredStudents : students}
+        reports={reports}
+        teacherName={currentTeacher.name}
+        initialStudentId={modalInitialStudentId}
+        onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
+      />
     </div>
   );
 };

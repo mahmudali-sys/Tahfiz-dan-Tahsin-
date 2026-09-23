@@ -22,7 +22,8 @@ import {
   X,
   Edit3,
   Award,
-  AlertCircle
+  AlertCircle,
+  Plus
 } from 'lucide-react';
 import { Student, StudentReportData, SchoolSettings, Teacher, TahfizSurahRecord } from '../types';
 import { 
@@ -34,6 +35,7 @@ import {
 import { RapotPreviewModal } from './RapotPreviewModal';
 import { GradeInputModal } from './GradeInputModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
+import { AttendanceAndHafalanModal, formatIndonesianDate } from './AttendanceAndHafalanModal';
 import { getPredicate, getPredicateColor } from '../data/quranData';
 
 interface PengolahanNilaiViewProps {
@@ -71,6 +73,11 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
   const [selectedStudentForGrading, setSelectedStudentForGrading] = useState<StudentReportData | null>(null);
   const [simakanStudent, setSimakanStudent] = useState<Student | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
+
+  // Tanggal Presensi & Modal Setoran Halaqah
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [isAttendanceHafalanModalOpen, setIsAttendanceHafalanModalOpen] = useState<boolean>(false);
+  const [modalInitialStudentId, setModalInitialStudentId] = useState<string | undefined>(undefined);
 
   // Daily attendance state: studentId -> 'H' | 'S' | 'I' | 'A'
   const [attendanceData, setAttendanceData] = useState<Record<string, 'H' | 'S' | 'I' | 'A'>>(() => {
@@ -141,6 +148,50 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
       ...prev,
       [studentId]: note,
     }));
+  };
+
+  const handleSaveAttendanceAndSetoran = (params: {
+    studentId: string;
+    attendanceDate: string;
+    attendanceStatus: 'H' | 'S' | 'I' | 'A';
+    attendanceNote: string;
+    hafalanRecord?: TahfizSurahRecord;
+  }) => {
+    // 1. Update attendance
+    handleAttendanceChange(params.studentId, params.attendanceStatus);
+    if (params.attendanceNote) {
+      handleAttendanceNoteChange(params.studentId, params.attendanceNote);
+    }
+    setAttendanceDate(params.attendanceDate);
+
+    // 2. Update hafalan setoran if provided
+    if (params.hafalanRecord) {
+      const student = students.find((s) => s.id === params.studentId);
+      const curReport = reports[params.studentId];
+      if (student && curReport) {
+        const filtered = curReport.tahfizRecords.filter((r) => r.surahNumber !== params.hafalanRecord!.surahNumber);
+        const updatedRecords = [params.hafalanRecord, ...filtered];
+        const totalAyat = updatedRecords.reduce((acc, r) => acc + (r.ayatTo - r.ayatFrom + 1), 0);
+        const uniqueSurahs = Array.from(new Set(updatedRecords.map((r) => r.surahNumber)));
+        const targetCount = student.targetSurahCount || 37;
+        const completionPct = Math.min(100, Math.round((uniqueSurahs.length / targetCount) * 100));
+
+        const updatedReport: StudentReportData = {
+          ...curReport,
+          tahfizRecords: updatedRecords,
+          summaryHafalan: {
+            ...curReport.summaryHafalan,
+            totalSurahLulus: uniqueSurahs.length,
+            totalAyatHafal: totalAyat,
+            completionPercentage: completionPct,
+          },
+        };
+        onUpdateReport(params.studentId, updatedReport);
+      }
+    }
+
+    setSaveSuccessMsg(`Data kehadiran (${formatIndonesianDate(params.attendanceDate)}) dan setoran santri berhasil dicatat!`);
+    setTimeout(() => setSaveSuccessMsg(null), 3500);
   };
 
   // Live Al-Qur'an Simakan Save Handler
@@ -931,6 +982,58 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
               </div>
             </div>
 
+            {/* Header Pengaturan Tanggal Presensi & Setoran Halaqah */}
+            <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white p-4 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-800/80 rounded-xl border border-emerald-700 text-emerald-300">
+                  <Calendar className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">
+                    Presensi Halaqah & Setoran Al-Qur'an
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-white">
+                    Tanggal Pertemuan: {formatIndonesianDate(attendanceDate)}
+                  </h3>
+                  <p className="text-[11px] text-emerald-200">
+                    Kelas {selectedClass} • Guru Pengampu: {assignedTeacher.name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Date Input and Open Form Button */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-2 bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-700/60 text-xs">
+                  <span className="text-emerald-200 font-bold text-[11px]">Pilih Tanggal:</span>
+                  <input
+                    type="date"
+                    value={attendanceDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    className="bg-white text-slate-900 font-bold px-2 py-1 rounded-lg text-xs cursor-pointer shadow-2xs focus:ring-2 focus:ring-emerald-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceDate(new Date().toISOString().split('T')[0])}
+                    className="px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                  >
+                    Hari Ini
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalInitialStudentId(undefined);
+                    setIsAttendanceHafalanModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Form Tanggal Kehadiran & Setoran</span>
+                </button>
+              </div>
+            </div>
+
             {/* Quick Presensi Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
               <div className="flex flex-wrap items-center gap-2">
@@ -966,11 +1069,13 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                     <th className="py-2.5 px-3 w-36">NISN / NIS</th>
                     <th className="py-2.5 px-4 min-w-[200px]">Nama Santri</th>
                     <th className="py-2.5 px-2 text-center w-16">L/P</th>
-                    <th className="py-2.5 px-3 text-center min-w-[150px]">Presensi Kehadiran</th>
+                    <th className="py-2.5 px-3 text-center min-w-[160px]">
+                      Presensi ({formatIndonesianDate(attendanceDate, false)})
+                    </th>
                     <th className="py-2.5 px-3 text-center min-w-[140px]">Tahsin / Iqra</th>
-                    <th className="py-2.5 px-3 text-center min-w-[170px]">Setoran Tahfiz Terakhir</th>
+                    <th className="py-2.5 px-3 text-center min-w-[180px]">Setoran Tahfiz & Tanggal</th>
                     <th className="py-2.5 px-3 min-w-[180px]">Catatan Perkembangan</th>
-                    <th className="py-2.5 px-3 text-center min-w-[150px]">Aksi Guru</th>
+                    <th className="py-2.5 px-3 text-center min-w-[180px]">Aksi Guru</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-sans">
@@ -1078,7 +1183,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                           </div>
                         </td>
 
-                        {/* Setoran Tahfiz Terakhir */}
+                        {/* Setoran Tahfiz Terakhir & Tanggal */}
                         <td className="py-3 px-3 text-center">
                           {lastTahfiz ? (
                             <div>
@@ -1087,6 +1192,10 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                               </div>
                               <div className="text-[11px] text-slate-500">
                                 Ayat {lastTahfiz.ayatFrom}–{lastTahfiz.ayatTo} • Nilai: <strong className="text-emerald-700">{lastTahfiz.gradeScore}</strong>
+                              </div>
+                              <div className="inline-flex items-center gap-1 mt-1 text-[10px] text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
+                                <Calendar className="w-3 h-3 text-blue-600" />
+                                <span>Tgl: {lastTahfiz.date || 'Belum dicatat'}</span>
                               </div>
                             </div>
                           ) : (
@@ -1108,6 +1217,18 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                         {/* Aksi Guru */}
                         <td className="py-3 px-3 text-center">
                           <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalInitialStudentId(student.id);
+                                setIsAttendanceHafalanModalOpen(true);
+                              }}
+                              className="px-2 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-[11px] font-bold shadow-xs cursor-pointer transition-colors flex items-center gap-1"
+                              title="Buka Form Tanggal Kehadiran & Setoran Santri Ini"
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>Form</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => setSimakanStudent(student)}
@@ -1495,6 +1616,20 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
         />
       )}
 
+      {/* Form Tanggal Kehadiran & Setoran Santri Modal */}
+      <AttendanceAndHafalanModal
+        isOpen={isAttendanceHafalanModalOpen}
+        onClose={() => {
+          setIsAttendanceHafalanModalOpen(false);
+          setModalInitialStudentId(undefined);
+        }}
+        students={filteredStudents.length > 0 ? filteredStudents : students}
+        reports={reports}
+        teacherName={currentTeacher?.name || assignedTeacher.name}
+        initialStudentId={modalInitialStudentId}
+        onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
+      />
+
       {/* Official Printable Lembar Absen & Penilaian Modal */}
       {isPrintModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
@@ -1571,6 +1706,10 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                       <span className="w-28 font-semibold text-slate-600">Total Santri:</span>
                       <span className="font-bold text-slate-900">{filteredStudents.length} Santri</span>
                     </div>
+                    <div className="flex">
+                      <span className="w-28 font-semibold text-slate-600">Tgl Kehadiran:</span>
+                      <span className="font-bold text-emerald-900">{formatIndonesianDate(attendanceDate)}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1585,7 +1724,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                       <th className="border border-slate-400 p-1 w-12">Absen</th>
                       <th className="border border-slate-400 p-1 min-w-[110px]">Tahsin (Iqra/Hal)</th>
                       <th className="border border-slate-400 p-1 w-10">Nilai</th>
-                      <th className="border border-slate-400 p-1 min-w-[130px]">Setoran Tahfiz Terakhir</th>
+                      <th className="border border-slate-400 p-1 min-w-[130px]">Setoran Tahfiz & Tanggal</th>
                       <th className="border border-slate-400 p-1 w-10">Nilai</th>
                       <th className="border border-slate-400 p-1 min-w-[100px]">Catatan / Paraf</th>
                     </tr>
@@ -1615,7 +1754,16 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                           </td>
                           <td className="border border-slate-400 p-1 text-center font-bold">{tahsinAvg}</td>
                           <td className="border border-slate-400 p-1 text-center">
-                            {lastTahfiz ? `${lastTahfiz.surahName} (${lastTahfiz.ayatFrom}-${lastTahfiz.ayatTo})` : '-'}
+                            {lastTahfiz ? (
+                              <div>
+                                <span className="font-semibold">{lastTahfiz.surahName} ({lastTahfiz.ayatFrom}-{lastTahfiz.ayatTo})</span>
+                                {lastTahfiz.date && (
+                                  <div className="text-[8px] text-slate-500">Tgl: {lastTahfiz.date}</div>
+                                )}
+                              </div>
+                            ) : (
+                              '-'
+                            )}
                           </td>
                           <td className="border border-slate-400 p-1 text-center font-bold">
                             {lastTahfiz ? lastTahfiz.gradeScore : '-'}

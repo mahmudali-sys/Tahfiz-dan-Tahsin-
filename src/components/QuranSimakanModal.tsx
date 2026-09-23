@@ -19,7 +19,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Settings2,
-  Info
+  Info,
+  Calendar
 } from 'lucide-react';
 import { Student, TahfizSurahRecord } from '../types';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
@@ -69,10 +70,11 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
   // Per-Ayah error tags
   const [taggedAyahs, setTaggedAyahs] = useState<AyahMistakeTag[]>([]);
 
-  // Score override & Mutqin
+  // Score override & Mutqin & Tanggal Setoran Hafalan
   const [manualScore, setManualScore] = useState<number | null>(null);
   const [isMutqin, setIsMutqin] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
+  const [setoranDate, setSetoranDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   
   // UI Display Options
   const [displayMode, setDisplayMode] = useState<'perAyat' | 'mushaf'>('perAyat');
@@ -207,7 +209,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
       gradeScore: Number(activeScore),
       predicate: currentPredicate,
       isMutqin,
-      date: new Date().toISOString().split('T')[0],
+      date: setoranDate,
       examinerTeacherName: teacherName,
       notes: finalNotes,
     };
@@ -342,6 +344,17 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               </div>
             )}
 
+            {/* Tanggal Setoran Hafalan */}
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-xl border border-slate-300 shadow-2xs">
+              <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+              <label className="font-bold text-slate-800">Tgl Setoran:</label>
+              <input
+                type="date"
+                value={setoranDate}
+                onChange={(e) => setSetoranDate(e.target.value)}
+                className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-0.5 text-xs text-slate-900 font-bold focus:ring-1 focus:ring-emerald-600 cursor-pointer"
+              />
+            </div>
           </div>
 
           {/* Display & Text Size Controls */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Plus, Trash2, CheckCircle2, BookOpen, Sparkles, Award, Bookmark, Info, Check, Clock, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { X, Save, Plus, Trash2, CheckCircle2, BookOpen, Sparkles, Award, Bookmark, Info, Check, Clock, AlertCircle, FileSpreadsheet, Calendar } from 'lucide-react';
 import { StudentReportData, TahfizSurahRecord, IqroJilid, IqroMaterialAspect, IqroStatus, TahsinGrade, IqroJilidRecord } from '../types';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { IQRO_AMM_JILID_DATA, getDefaultAspectsForJilid, calculateIqroAverage, generateDefaultJilidHistory } from '../data/iqroData';
@@ -134,6 +134,7 @@ export const GradeInputModal: React.FC<GradeInputModalProps> = ({
   const [gradeScore, setGradeScore] = useState<number>(90);
   const [isMutqin, setIsMutqin] = useState<boolean>(true);
   const [setoranNotes, setSetoranNotes] = useState<string>('Lancar dan tartil');
+  const [setoranDate, setSetoranDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   // Adab State
   const [kedisiplinan, setKedisiplinan] = useState(reportData.adab.kedisiplinan);
@@ -165,7 +166,7 @@ export const GradeInputModal: React.FC<GradeInputModalProps> = ({
       gradeScore: Number(gradeScore),
       predicate: getPredicate(Number(gradeScore)),
       isMutqin,
-      date: new Date().toISOString().split('T')[0],
+      date: setoranDate,
       examinerTeacherName: teacherName,
       notes: setoranNotes,
     };
@@ -441,6 +442,20 @@ export const GradeInputModal: React.FC<GradeInputModalProps> = ({
                     />
                   </div>
 
+                  {/* Tanggal Menghafal / Setoran */}
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Tanggal Menghafal / Setoran</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={setoranDate}
+                      onChange={(e) => setSetoranDate(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-bold cursor-pointer"
+                    />
+                  </div>
+
                   {/* Nilai Setoran */}
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Nilai (0-100)</label>
@@ -514,6 +529,7 @@ export const GradeInputModal: React.FC<GradeInputModalProps> = ({
                       <thead className="bg-slate-100 text-slate-700 text-[11px] uppercase">
                         <tr>
                           <th className="py-2.5 px-3">Surat & Ayat</th>
+                          <th className="py-2.5 px-3">Tanggal Setoran</th>
                           <th className="py-2.5 px-3 text-center">Juz</th>
                           <th className="py-2.5 px-3 text-center">Nilai</th>
                           <th className="py-2.5 px-3 text-center">Predikat</th>
@@ -530,6 +546,16 @@ export const GradeInputModal: React.FC<GradeInputModalProps> = ({
                               <span className="text-slate-500 font-normal ml-1">
                                 (Ayat {rec.ayatFrom}-{rec.ayatTo})
                               </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 font-semibold text-[11px]">
+                              {rec.date ? (
+                                <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-mono">
+                                  <Calendar className="w-3 h-3 text-emerald-700" />
+                                  {rec.date}
+                                </span>
+                              ) : (
+                                '-'
+                              )}
                             </td>
                             <td className="py-2.5 px-3 text-center font-medium text-slate-600">
                               Juz {rec.juzNumber}
