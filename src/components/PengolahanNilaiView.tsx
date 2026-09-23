@@ -14,9 +14,17 @@ import {
   BookOpen,
   Info,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  ClipboardList,
+  UserCheck,
+  Printer,
+  Calendar,
+  X,
+  Edit3,
+  Award,
+  AlertCircle
 } from 'lucide-react';
-import { Student, StudentReportData, SchoolSettings, Teacher } from '../types';
+import { Student, StudentReportData, SchoolSettings, Teacher, TahfizSurahRecord } from '../types';
 import { 
   IQRA_SECTIONS, 
   TAHFIZ_SPREADSHEET_SURAHS, 
@@ -24,7 +32,9 @@ import {
   TahfizSpreadsheetSurah
 } from '../data/spreadsheetCurriculum';
 import { RapotPreviewModal } from './RapotPreviewModal';
-import { getPredicate } from '../data/quranData';
+import { GradeInputModal } from './GradeInputModal';
+import { QuranSimakanModal } from './QuranSimakanModal';
+import { getPredicate, getPredicateColor } from '../data/quranData';
 
 interface PengolahanNilaiViewProps {
   students: Student[];
@@ -49,15 +59,44 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
   onBackToDashboard,
   initialClass = '7B',
 }) => {
-  // Active Sheet Tab: 'iqra' | 'tahfiz' | 'rapot'
-  const [activeSheet, setActiveSheet] = useState<'iqra' | 'tahfiz' | 'rapot'>('iqra');
+  // Active Sheet Tab: 'absen' | 'iqra' | 'tahfiz' | 'rapot'
+  const [activeSheet, setActiveSheet] = useState<'absen' | 'iqra' | 'tahfiz' | 'rapot'>('absen');
   const [selectedClass, setSelectedClass] = useState<string>(initialClass);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [tahfizJuzFilter, setTahfizJuzFilter] = useState<'all' | '30' | '29' | '28' | '27_26'>('all');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
-  // Selected student for quick rapot modal preview
+  // Selected student for quick modals
   const [previewStudentReport, setPreviewStudentReport] = useState<StudentReportData | null>(null);
+  const [selectedStudentForGrading, setSelectedStudentForGrading] = useState<StudentReportData | null>(null);
+  const [simakanStudent, setSimakanStudent] = useState<Student | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
+
+  // Daily attendance state: studentId -> 'H' | 'S' | 'I' | 'A'
+  const [attendanceData, setAttendanceData] = useState<Record<string, 'H' | 'S' | 'I' | 'A'>>(() => {
+    const saved = localStorage.getItem(`SMPIA9_ATTENDANCE_${selectedClass}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        // fallback
+      }
+    }
+    const initial: Record<string, 'H' | 'S' | 'I' | 'A'> = {};
+    students.forEach((s) => {
+      initial[s.id] = 'H';
+    });
+    return initial;
+  });
+
+  // Daily attendance notes
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    students.forEach((s) => {
+      initial[s.id] = reports[s.id]?.adab?.generalNotes || '';
+    });
+    return initial;
+  });
 
   // Filter students based on selected class and search
   const filteredStudents = useMemo(() => {
@@ -70,6 +109,76 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
       return matchClass && matchSearch;
     });
   }, [students, selectedClass, searchQuery]);
+
+  // Determine assigned teacher for currently selected class
+  const assignedTeacher = useMemo(() => {
+    const found = teachers.find((t) => t.assignedClasses.includes(selectedClass));
+    return found || currentTeacher || teachers[0];
+  }, [teachers, selectedClass, currentTeacher]);
+
+  // Save attendance state to localStorage whenever changed
+  const handleAttendanceChange = (studentId: string, status: 'H' | 'S' | 'I' | 'A') => {
+    setAttendanceData((prev) => {
+      const updated = { ...prev, [studentId]: status };
+      localStorage.setItem(`SMPIA9_ATTENDANCE_${selectedClass}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleMarkAllPresent = () => {
+    const updated: Record<string, 'H' | 'S' | 'I' | 'A'> = { ...attendanceData };
+    filteredStudents.forEach((s) => {
+      updated[s.id] = 'H';
+    });
+    setAttendanceData(updated);
+    localStorage.setItem(`SMPIA9_ATTENDANCE_${selectedClass}`, JSON.stringify(updated));
+    setSaveSuccessMsg(`Seluruh ${filteredStudents.length} santri ditandai Hadir (H).`);
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
+
+  const handleAttendanceNoteChange = (studentId: string, note: string) => {
+    setAttendanceNotes((prev) => ({
+      ...prev,
+      [studentId]: note,
+    }));
+  };
+
+  // Live Al-Qur'an Simakan Save Handler
+  const handleSaveSimakanResult = (newRecord: TahfizSurahRecord) => {
+    if (!simakanStudent) return;
+    const currentReport = reports[simakanStudent.id];
+    if (!currentReport) return;
+
+    const filtered = currentReport.tahfizRecords.filter((r) => r.surahNumber !== newRecord.surahNumber);
+    const updatedRecords = [newRecord, ...filtered];
+    const totalAyat = updatedRecords.reduce((acc, r) => acc + (r.ayatTo - r.ayatFrom + 1), 0);
+    const uniqueSurahs = Array.from(new Set(updatedRecords.map((r) => r.surahNumber)));
+    const targetCount = simakanStudent.targetSurahCount || 37;
+    const completionPct = Math.min(100, Math.round((uniqueSurahs.length / targetCount) * 100));
+
+    const updatedReport: StudentReportData = {
+      ...currentReport,
+      tahfizRecords: updatedRecords,
+      summaryHafalan: {
+        ...currentReport.summaryHafalan,
+        totalSurahLulus: uniqueSurahs.length,
+        totalAyatHafal: totalAyat,
+        completionPercentage: completionPct,
+      },
+    };
+
+    onUpdateReport(simakanStudent.id, updatedReport);
+    setTahfizMatrixData((prev) => ({
+      ...prev,
+      [simakanStudent.id]: {
+        ...(prev[simakanStudent.id] || {}),
+        [newRecord.surahNumber]: String(newRecord.gradeScore),
+      },
+    }));
+    setSimakanStudent(null);
+    setSaveSuccessMsg(`Hasil simakan Al-Qur'an ${simakanStudent.name} (${newRecord.surahName} Nilai: ${newRecord.gradeScore}) berhasil dicatat!`);
+    setTimeout(() => setSaveSuccessMsg(null), 4000);
+  };
 
   // Local editable state for Nilai Iqra Matrix: studentId -> aspectId -> score
   // Also statusOverride: studentId -> jilid -> status
@@ -373,6 +482,61 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
 
   // Export current active view to CSV
   const handleExportCSV = () => {
+    if (activeSheet === 'absen') {
+      let csvContent = 'data:text/csv;charset=utf-8,';
+      const headers = [
+        'No. Absen',
+        'NISN',
+        'NIS',
+        'Nama Lengkap Santri',
+        'L/P',
+        'Kelas',
+        'Status Presensi',
+        'Target Kurikulum',
+        'Capaian Tahsin',
+        'Rata-rata Tahsin',
+        'Predikat Tahsin',
+        'Surat Tahfiz Terakhir',
+        'Nilai Tahfiz',
+        'Predikat Tahfiz',
+        'Catatan Guru'
+      ];
+      csvContent += headers.map((h) => `"${h}"`).join(',') + '\n';
+
+      filteredStudents.forEach((std, idx) => {
+        const rep = reports[std.id];
+        const pres = attendanceData[std.id] || 'H';
+        const lastTahfiz = rep?.tahfizRecords?.[0];
+        const row = [
+          String(idx + 1),
+          std.nisn,
+          std.nis,
+          std.name,
+          std.gender,
+          std.className,
+          pres === 'H' ? 'Hadir' : pres === 'S' ? 'Sakit' : pres === 'I' ? 'Izin' : 'Alpa',
+          std.targetJuz,
+          rep?.tahsin?.levelBook || `Iqro' Jilid ${rep?.tahsin?.jilid || 6}`,
+          String(rep?.tahsin?.averageScore || 85),
+          rep?.tahsin?.overallPredicate || 'Mumtaz',
+          lastTahfiz ? `${lastTahfiz.surahName} (Ayat ${lastTahfiz.ayatFrom}-${lastTahfiz.ayatTo})` : 'Belum Ada',
+          lastTahfiz ? String(lastTahfiz.gradeScore) : '-',
+          lastTahfiz ? lastTahfiz.predicate : '-',
+          attendanceNotes[std.id] || rep?.adab?.generalNotes || '-'
+        ];
+        csvContent += row.map((r) => `"${r}"`).join(',') + '\n';
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `Absen_Penilaian_${selectedClass}_SMPIA9.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     if (activeSheet === 'iqra') {
       let csvContent = 'data:text/csv;charset=utf-8,';
       // Headers
@@ -468,10 +632,19 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                 Tahun Ajaran {settings.academicYear} • Semester {settings.semester}
               </span>
             </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                <ClipboardList className="w-3.5 h-3.5 text-emerald-700" />
+                Lembar Absen & Pengolahan Nilai
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                Tahun Ajaran {settings.academicYear} • Semester {settings.semester}
+              </span>
+            </div>
             <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 mt-1 flex items-center gap-2">
-              <span>Rencana Rapot Iqra' dan Tahfiz</span>
+              <span>Buku Absensi & Lembar Penilaian Santri</span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                .xlsx Editor
+                Kelas {selectedClass}
               </span>
             </h1>
           </div>
@@ -479,6 +652,16 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 self-end md:self-auto">
+          <button
+            type="button"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-emerald-300"
+            title="Cetak lembar absen dan penilaian resmi format A4"
+          >
+            <Printer className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Cetak Absen & Penilaian</span>
+          </button>
+
           <button
             onClick={handleAutoFillPassingGrades}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-slate-200"
@@ -571,6 +754,23 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
       {/* SPREADSHEET TABS: Like Google Sheets / Excel Tabs */}
       <div className="flex items-center justify-between border-b border-slate-300 bg-slate-200/80 px-2 pt-2 rounded-t-xl overflow-x-auto">
         <div className="flex items-center gap-1">
+          {/* Sheet 0: Absen & Penilaian */}
+          <button
+            type="button"
+            onClick={() => setActiveSheet('absen')}
+            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-t-xl text-xs font-bold transition-all cursor-pointer border-t border-x ${
+              activeSheet === 'absen'
+                ? 'bg-white text-emerald-800 border-slate-300 shadow-xs border-b-white z-10'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-50 border-transparent hover:text-slate-900'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 text-emerald-600" />
+            <span>Absen & Penilaian</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800">
+              Presensi & Harian
+            </span>
+          </button>
+
           {/* Sheet 1: Nilai Iqra */}
           <button
             type="button"
@@ -672,6 +872,282 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
 
       {/* SPREADSHEET BODY */}
       <div className="bg-white rounded-b-2xl border border-slate-300 shadow-sm overflow-hidden">
+        {/* TAB 0: LEMBAR ABSEN & PENILAIAN */}
+        {activeSheet === 'absen' && (
+          <div className="p-4 sm:p-5 space-y-4">
+            {/* Header Status & Attendance Counter Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="text-[11px] font-semibold text-slate-500 uppercase">Total Santri</div>
+                <div className="text-xl font-black text-slate-800 mt-0.5">{filteredStudents.length} Santri</div>
+                <div className="text-[10px] text-slate-400">Kelas {selectedClass}</div>
+              </div>
+
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="text-[11px] font-semibold text-emerald-700 uppercase">Hadir (H)</div>
+                <div className="text-xl font-black text-emerald-800 mt-0.5">
+                  {filteredStudents.filter((s) => (attendanceData[s.id] || 'H') === 'H').length}
+                </div>
+                <div className="text-[10px] text-emerald-600">Presensi Aktif</div>
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <div className="text-[11px] font-semibold text-amber-700 uppercase">Sakit (S)</div>
+                <div className="text-xl font-black text-amber-800 mt-0.5">
+                  {filteredStudents.filter((s) => attendanceData[s.id] === 'S').length}
+                </div>
+                <div className="text-[10px] text-amber-600">Izin Sakit</div>
+              </div>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <div className="text-[11px] font-semibold text-blue-700 uppercase">Izin (I)</div>
+                <div className="text-xl font-black text-blue-800 mt-0.5">
+                  {filteredStudents.filter((s) => attendanceData[s.id] === 'I').length}
+                </div>
+                <div className="text-[10px] text-blue-600">Izin Keperluan</div>
+              </div>
+
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <div className="text-[11px] font-semibold text-rose-700 uppercase">Alpa (A)</div>
+                <div className="text-xl font-black text-rose-800 mt-0.5">
+                  {filteredStudents.filter((s) => attendanceData[s.id] === 'A').length}
+                </div>
+                <div className="text-[10px] text-rose-600">Tanpa Keterangan</div>
+              </div>
+
+              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                <div className="text-[11px] font-semibold text-indigo-700 uppercase">% Kehadiran</div>
+                <div className="text-xl font-black text-indigo-800 mt-0.5">
+                  {filteredStudents.length > 0
+                    ? Math.round(
+                        (filteredStudents.filter((s) => (attendanceData[s.id] || 'H') === 'H').length /
+                          filteredStudents.length) *
+                          100
+                      )
+                    : 100}
+                  %
+                </div>
+                <div className="text-[10px] text-indigo-600">Halaqah Pekan Ini</div>
+              </div>
+            </div>
+
+            {/* Quick Presensi Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-slate-700">Aksi Presensi:</span>
+                <button
+                  type="button"
+                  onClick={handleMarkAllPresent}
+                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-xs cursor-pointer transition-colors"
+                >
+                  ✓ Set Semua Hadir (H)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-bold shadow-xs cursor-pointer transition-colors flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5 text-slate-600" />
+                  Cetak Lembar Absen & Penilaian
+                </button>
+              </div>
+
+              <div className="text-slate-500 font-medium">
+                Guru Pengampu: <strong className="text-slate-800">{assignedTeacher.name}</strong> • Target: <span className="text-emerald-700 font-bold">{selectedClass.startsWith('9') ? 'Juz 28, 29, 30' : selectedClass.startsWith('8') ? 'Juz 29 & 30' : 'Juz 30'}</span>
+              </div>
+            </div>
+
+            {/* Attendance & Grading Table */}
+            <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead className="bg-slate-100 text-slate-800 font-bold uppercase text-[11px] border-b border-slate-300">
+                  <tr>
+                    <th className="py-2.5 px-3 text-center w-12 bg-slate-200/80">No. Absen</th>
+                    <th className="py-2.5 px-3 w-36">NISN / NIS</th>
+                    <th className="py-2.5 px-4 min-w-[200px]">Nama Santri</th>
+                    <th className="py-2.5 px-2 text-center w-16">L/P</th>
+                    <th className="py-2.5 px-3 text-center min-w-[150px]">Presensi Kehadiran</th>
+                    <th className="py-2.5 px-3 text-center min-w-[140px]">Tahsin / Iqra</th>
+                    <th className="py-2.5 px-3 text-center min-w-[170px]">Setoran Tahfiz Terakhir</th>
+                    <th className="py-2.5 px-3 min-w-[180px]">Catatan Perkembangan</th>
+                    <th className="py-2.5 px-3 text-center min-w-[150px]">Aksi Guru</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {filteredStudents.map((student, idx) => {
+                    const rep = reports[student.id];
+                    const currentPresensi = attendanceData[student.id] || 'H';
+                    const lastTahfiz = rep?.tahfizRecords?.[0];
+                    const tahsinAvg = rep?.tahsin?.averageScore || 85;
+
+                    return (
+                      <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                        {/* No. Absen */}
+                        <td className="py-3 px-3 text-center font-bold text-slate-700 bg-slate-50/50">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-extrabold text-xs">
+                            {idx + 1}
+                          </span>
+                        </td>
+
+                        {/* NISN & NIS */}
+                        <td className="py-3 px-3">
+                          <div className="font-mono font-bold text-slate-900 text-xs">{student.nisn}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">NIS: {student.nis}</div>
+                        </td>
+
+                        {/* Nama Santri */}
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                            {student.name}
+                          </div>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                            <span className="font-semibold text-emerald-700">Kelas {student.className}</span>
+                            <span>•</span>
+                            <span>Kelompok {student.kelompok || '6'}</span>
+                          </div>
+                        </td>
+
+                        {/* L/P */}
+                        <td className="py-3 px-2 text-center">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-[11px] font-extrabold ${
+                              student.gender === 'L'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-pink-100 text-pink-800'
+                            }`}
+                          >
+                            {student.gender}
+                          </span>
+                        </td>
+
+                        {/* Presensi Segmented Buttons */}
+                        <td className="py-3 px-3 text-center">
+                          <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+                            {(['H', 'S', 'I', 'A'] as const).map((status) => {
+                              const isActive = currentPresensi === status;
+                              const activeColor =
+                                status === 'H'
+                                  ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                                  : status === 'S'
+                                  ? 'bg-amber-500 text-white shadow-xs font-bold'
+                                  : status === 'I'
+                                  ? 'bg-blue-500 text-white shadow-xs font-bold'
+                                  : 'bg-rose-600 text-white shadow-xs font-bold';
+
+                              return (
+                                <button
+                                  key={status}
+                                  type="button"
+                                  onClick={() => handleAttendanceChange(student.id, status)}
+                                  className={`px-2 py-1 text-[11px] rounded-md transition-all cursor-pointer ${
+                                    isActive
+                                      ? activeColor
+                                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-semibold'
+                                  }`}
+                                  title={
+                                    status === 'H'
+                                      ? 'Hadir'
+                                      : status === 'S'
+                                      ? 'Sakit'
+                                      : status === 'I'
+                                      ? 'Izin'
+                                      : 'Alpa'
+                                  }
+                                >
+                                  {status}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </td>
+
+                        {/* Tahsin / Iqra */}
+                        <td className="py-3 px-3 text-center">
+                          <div className="font-semibold text-slate-800 text-[11px]">
+                            {rep?.tahsin?.levelBook || `Iqro' Jilid ${rep?.tahsin?.jilid || 6}`}
+                          </div>
+                          <div className="flex items-center justify-center gap-1 mt-1">
+                            <span className="font-mono font-bold text-xs text-slate-900">{tahsinAvg}</span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${getPredicateColor(
+                                rep?.tahsin?.overallPredicate || getPredicate(tahsinAvg)
+                              )}`}
+                            >
+                              {rep?.tahsin?.overallPredicate || getPredicate(tahsinAvg)}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Setoran Tahfiz Terakhir */}
+                        <td className="py-3 px-3 text-center">
+                          {lastTahfiz ? (
+                            <div>
+                              <div className="font-bold text-slate-900 text-xs">
+                                {lastTahfiz.surahName}
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                Ayat {lastTahfiz.ayatFrom}–{lastTahfiz.ayatTo} • Nilai: <strong className="text-emerald-700">{lastTahfiz.gradeScore}</strong>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">Belum ada setoran</span>
+                          )}
+                        </td>
+
+                        {/* Catatan Perkembangan */}
+                        <td className="py-3 px-3">
+                          <input
+                            type="text"
+                            placeholder="Catatan perkembangan halaqah..."
+                            value={attendanceNotes[student.id] || ''}
+                            onChange={(e) => handleAttendanceNoteChange(student.id, e.target.value)}
+                            className="w-full px-2.5 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-800"
+                          />
+                        </td>
+
+                        {/* Aksi Guru */}
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setSimakanStudent(student)}
+                              className="px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-[11px] font-bold shadow-xs cursor-pointer transition-colors flex items-center gap-1"
+                              title="Buka Layar Simakan Al-Qur'an Live"
+                            >
+                              <BookOpen className="w-3.5 h-3.5" />
+                              <span>Simak</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (rep) setSelectedStudentForGrading(rep);
+                              }}
+                              className="p-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors border border-slate-200"
+                              title="Input Nilai Lengkap"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (rep) setPreviewStudentReport(rep);
+                              }}
+                              className="p-1 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors border border-emerald-200"
+                              title="Lihat Rapot A4"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* TAB 1: NILAI IQRA (Matching IMG_1309.png exactly) */}
         {activeSheet === 'iqra' && (
           <div className="overflow-x-auto max-h-[75vh]">
@@ -679,7 +1155,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
               <thead className="sticky top-0 bg-slate-100 z-20 shadow-xs border-b border-black">
                 {/* Header Row 1: Jilid Group Banners */}
                 <tr className="bg-slate-200/90 text-center font-bold text-slate-900">
-                  <th colSpan={4} className="border border-slate-300 py-1.5 px-2 bg-slate-300/80">
+                  <th colSpan={5} className="border border-slate-300 py-1.5 px-2 bg-slate-300/80">
                     IDENTITAS SANTRI
                   </th>
                   {IQRA_SECTIONS.map((sec) => (
@@ -701,6 +1177,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                   <th className="border border-slate-300 py-2 px-1.5 w-10 text-center bg-slate-200">NO</th>
                   <th className="border border-slate-300 py-2 px-2 w-28 text-left bg-slate-200">NIS</th>
                   <th className="border border-slate-300 py-2 px-3 min-w-[190px] text-left bg-slate-200">NAMA</th>
+                  <th className="border border-slate-300 py-2 px-1 w-12 text-center bg-slate-200">L/P</th>
                   <th className="border border-slate-300 py-2 px-1.5 w-14 text-center bg-slate-200">Kelompok</th>
 
                   {/* Aspects per Jilid */}
@@ -765,6 +1242,13 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                      </td>
+
+                      {/* L/P */}
+                      <td className="border border-slate-300 py-1.5 px-1 text-center font-bold">
+                        <span className={`px-1 py-0.2 rounded text-[10px] ${student.gender === 'L' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}>
+                          {student.gender}
+                        </span>
                       </td>
 
                       {/* Kelompok */}
@@ -851,7 +1335,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
               <thead className="sticky top-0 bg-slate-100 z-20 shadow-xs border-b border-black">
                 {/* Header Row 1: REKAP NILAI RAPORT PESERTA DIDIK - HAFALAN */}
                 <tr className="bg-slate-200 text-center font-bold text-slate-900">
-                  <th colSpan={3} className="border border-slate-300 py-1.5 px-2 bg-slate-300/80">
+                  <th colSpan={4} className="border border-slate-300 py-1.5 px-2 bg-slate-300/80">
                     IDENTITAS
                   </th>
                   <th
@@ -867,6 +1351,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                   <th className="border border-slate-300 py-2 px-1.5 w-10 text-center bg-slate-200">No</th>
                   <th className="border border-slate-300 py-2 px-2 w-28 text-left bg-slate-200">No Induk</th>
                   <th className="border border-slate-300 py-2 px-3 min-w-[190px] text-left bg-slate-200">Nama</th>
+                  <th className="border border-slate-300 py-2 px-1 w-12 text-center bg-slate-200">L/P</th>
 
                   {displayedTahfizSurahs.map((surah) => (
                     <th
@@ -918,6 +1403,13 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                      </td>
+
+                      {/* L/P */}
+                      <td className="border border-slate-300 py-1.5 px-1 text-center font-bold">
+                        <span className={`px-1 py-0.2 rounded text-[10px] ${student.gender === 'L' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}>
+                          {student.gender}
+                        </span>
                       </td>
 
                       {/* Surah Score Cells */}
@@ -974,6 +1466,193 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
           settings={settings}
           teacherName={currentTeacher?.name || teachers[0]?.name || 'Ustadz Pembimbing'}
         />
+      )}
+
+      {/* Grade Input Modal (when edit button clicked) */}
+      {selectedStudentForGrading && (
+        <GradeInputModal
+          isOpen={!!selectedStudentForGrading}
+          onClose={() => setSelectedStudentForGrading(null)}
+          reportData={selectedStudentForGrading}
+          teacherName={currentTeacher?.name || assignedTeacher.name}
+          onSave={(updatedReport) => {
+            onUpdateReport(updatedReport.student.id, updatedReport);
+            setSelectedStudentForGrading(null);
+            setSaveSuccessMsg(`Data nilai santri ${updatedReport.student.name} berhasil diperbarui!`);
+            setTimeout(() => setSaveSuccessMsg(null), 3000);
+          }}
+        />
+      )}
+
+      {/* Live Al-Qur'an Simakan Modal */}
+      {simakanStudent && (
+        <QuranSimakanModal
+          isOpen={!!simakanStudent}
+          onClose={() => setSimakanStudent(null)}
+          student={simakanStudent}
+          teacherName={currentTeacher?.name || assignedTeacher.name}
+          onSaveTahfizResult={handleSaveSimakanResult}
+        />
+      )}
+
+      {/* Official Printable Lembar Absen & Penilaian Modal */}
+      {isPrintModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh]">
+            {/* Modal Top Bar */}
+            <div className="px-5 py-3.5 bg-emerald-800 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-emerald-300" />
+                <span className="font-bold text-sm">
+                  Cetak Lembar Absensi & Penilaian Santri Kelas {selectedClass}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-white text-emerald-900 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak / Simpan PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="p-1.5 hover:bg-emerald-700 rounded-lg text-emerald-200 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Document Sheet Preview */}
+            <div className="p-4 sm:p-6 overflow-y-auto bg-slate-100 flex justify-center">
+              <div className="bg-white p-6 sm:p-8 w-full max-w-4xl shadow-md border border-slate-300 text-slate-900 print:shadow-none print:border-none print:p-0">
+                {/* Official Letterhead (KOP) */}
+                <div className="border-b-2 border-slate-900 pb-3 mb-4 text-center">
+                  <div className="text-[12px] font-bold tracking-wider uppercase text-emerald-800">
+                    {settings.foundationName}
+                  </div>
+                  <div className="text-lg font-black tracking-wide uppercase text-slate-900">
+                    {settings.schoolName}
+                  </div>
+                  <div className="text-[11px] text-slate-600">
+                    {settings.address}, {settings.city} • Telp: {settings.phone} • Email: {settings.email}
+                  </div>
+                  <div className="mt-2 text-sm font-extrabold uppercase tracking-wide text-slate-900 bg-slate-100 py-1 rounded">
+                    DAFTAR ABSENSI DAN LEMBAR PENILAIAN TAHSIN & TAHFIZ AL-QUR'AN
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                    Tahun Ajaran {settings.academicYear} • Semester {settings.semester}
+                  </div>
+                </div>
+
+                {/* Class & Teacher Details */}
+                <div className="grid grid-cols-2 gap-4 text-xs mb-4 pb-2 border-b border-slate-200">
+                  <div className="space-y-1">
+                    <div className="flex">
+                      <span className="w-28 font-semibold text-slate-600">Rombel:</span>
+                      <span className="font-bold text-slate-900">Kelas {selectedClass}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-28 font-semibold text-slate-600">Target Kurikulum:</span>
+                      <span className="font-bold text-emerald-800">
+                        {selectedClass.startsWith('9') ? 'Juz 28, 29, 30 (59 Surat Mutqin)' : selectedClass.startsWith('8') ? 'Juz 29 & 30 (48 Surat Mutqin)' : 'Juz 30 (37 Surat Mutqin)'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex">
+                      <span className="w-28 font-semibold text-slate-600">Guru Pengampu:</span>
+                      <span className="font-bold text-slate-900">{assignedTeacher.name}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-28 font-semibold text-slate-600">Total Santri:</span>
+                      <span className="font-bold text-slate-900">{filteredStudents.length} Santri</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ledger Table */}
+                <table className="w-full border-collapse border border-slate-400 text-[10px]">
+                  <thead>
+                    <tr className="bg-slate-200 text-center font-bold text-slate-900">
+                      <th className="border border-slate-400 p-1 w-8">No</th>
+                      <th className="border border-slate-400 p-1 w-24">NISN / NIS</th>
+                      <th className="border border-slate-400 p-1 text-left min-w-[150px]">Nama Santri</th>
+                      <th className="border border-slate-400 p-1 w-8">L/P</th>
+                      <th className="border border-slate-400 p-1 w-12">Absen</th>
+                      <th className="border border-slate-400 p-1 min-w-[110px]">Tahsin (Iqra/Hal)</th>
+                      <th className="border border-slate-400 p-1 w-10">Nilai</th>
+                      <th className="border border-slate-400 p-1 min-w-[130px]">Setoran Tahfiz Terakhir</th>
+                      <th className="border border-slate-400 p-1 w-10">Nilai</th>
+                      <th className="border border-slate-400 p-1 min-w-[100px]">Catatan / Paraf</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((student, idx) => {
+                      const rep = reports[student.id];
+                      const pres = attendanceData[student.id] || 'H';
+                      const lastTahfiz = rep?.tahfizRecords?.[0];
+                      const tahsinAvg = rep?.tahsin?.averageScore || 85;
+
+                      return (
+                        <tr key={`print-${student.id}`} className="text-slate-800">
+                          <td className="border border-slate-400 p-1 text-center font-bold">{idx + 1}</td>
+                          <td className="border border-slate-400 p-1 font-mono text-[9px] text-center">
+                            {student.nisn}<br /><span className="text-slate-500">{student.nis}</span>
+                          </td>
+                          <td className="border border-slate-400 p-1 font-semibold">{student.name}</td>
+                          <td className="border border-slate-400 p-1 text-center font-bold">{student.gender}</td>
+                          <td className="border border-slate-400 p-1 text-center font-bold">
+                            <span className={pres === 'H' ? 'text-emerald-700' : pres === 'S' ? 'text-amber-700' : pres === 'I' ? 'text-blue-700' : 'text-rose-700'}>
+                              {pres}
+                            </span>
+                          </td>
+                          <td className="border border-slate-400 p-1 text-center">
+                            {rep?.tahsin?.levelBook || `Iqro' Jilid ${rep?.tahsin?.jilid || 6}`}
+                          </td>
+                          <td className="border border-slate-400 p-1 text-center font-bold">{tahsinAvg}</td>
+                          <td className="border border-slate-400 p-1 text-center">
+                            {lastTahfiz ? `${lastTahfiz.surahName} (${lastTahfiz.ayatFrom}-${lastTahfiz.ayatTo})` : '-'}
+                          </td>
+                          <td className="border border-slate-400 p-1 text-center font-bold">
+                            {lastTahfiz ? lastTahfiz.gradeScore : '-'}
+                          </td>
+                          <td className="border border-slate-400 p-1 text-left text-[9px]">
+                            {attendanceNotes[student.id] || rep?.adab?.generalNotes || ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* Signatures */}
+                <div className="mt-8 grid grid-cols-2 text-center text-xs">
+                  <div>
+                    <div>Mengetahui,</div>
+                    <div className="font-semibold text-slate-700">Koordinator Tahfiz & Al-Qur'an</div>
+                    <div className="h-16"></div>
+                    <div className="font-bold underline text-slate-900">
+                      {settings.coordinatorName || 'Mahmud Ali Yafi, S.S, M.Pd.I.'}
+                    </div>
+                    <div className="text-[10px] text-slate-600">NIP: 19820415 200801 1 008</div>
+                  </div>
+
+                  <div>
+                    <div>Bekasi, {settings.reportDate || '19 Desember 2025'}</div>
+                    <div className="font-semibold text-slate-700">Guru Pengampu Halaqah</div>
+                    <div className="h-16"></div>
+                    <div className="font-bold underline text-slate-900">{assignedTeacher.name}</div>
+                    <div className="text-[10px] text-slate-600">NIP: {assignedTeacher.nip || '19870512 201201 1 003'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

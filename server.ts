@@ -40,13 +40,23 @@ function getDatabase(): SchoolDatabase {
       const parsed = JSON.parse(fileData);
       if (parsed && parsed.students && parsed.reports) {
         const count9C = parsed.students.filter((s: any) => s.className === '9C').length;
-        if (count9C < 20 || parsed.students.length < 168) {
-          // Merge missing students and reports for Kelas 9C and 168 roster
-          parsed.students = INITIAL_STUDENTS;
+        const first9C = parsed.students.find((s: any) => s.className === '9C');
+        const needsUpdate = !first9C || first9C.name !== 'Ahmad Zuhal' || count9C < 20 || parsed.students.length < 168;
+
+        if (needsUpdate) {
+          // Merge missing students and update 9C with official names and NISN
+          const non9C = parsed.students.filter((s: any) => s.className !== '9C');
+          const students9C = INITIAL_STUDENTS.filter((s) => s.className === '9C');
+          parsed.students = [...non9C, ...students9C];
           parsed.reports = { ...INITIAL_REPORTS, ...parsed.reports };
+          students9C.forEach((s) => {
+            if (parsed.reports[s.id]) {
+              parsed.reports[s.id].student = s;
+            }
+          });
           parsed.version = (parsed.version || 1) + 1;
           parsed.lastUpdated = new Date().toISOString();
-          parsed.updatedByDevice = "System Sync (Rombel 9C Provisioning)";
+          parsed.updatedByDevice = "System Sync (Rombel 9C Official Names Update)";
           saveDatabaseToFile(parsed);
         }
         dbCache = parsed;

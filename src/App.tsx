@@ -47,11 +47,15 @@ export default function App() {
     try {
       const parsed: Student[] = JSON.parse(saved);
       const count9C = parsed.filter((s) => s.className === '9C').length;
-      if (count9C < 20 || parsed.length < 168) {
-        const existingMap = new Map(parsed.map((s) => [s.id, s]));
-        const merged = [...parsed];
+      const first9C = parsed.find((s) => s.className === '9C');
+      const needs9CUpdate = !first9C || first9C.name !== 'Ahmad Zuhal' || count9C < 20 || parsed.length < 168;
+
+      if (needs9CUpdate) {
+        const non9C = parsed.filter((s) => s.className !== '9C');
+        const existingMap = new Map(non9C.map((s) => [s.id, s]));
+        const merged = [...non9C];
         INITIAL_STUDENTS.forEach((s) => {
-          if (!existingMap.has(s.id)) {
+          if (s.className === '9C' || !existingMap.has(s.id)) {
             merged.push(s);
           }
         });
@@ -73,7 +77,18 @@ export default function App() {
     const saved = localStorage.getItem(STORAGE_KEYS.REPORTS);
     try {
       const existing = saved ? JSON.parse(saved) : {};
-      return { ...INITIAL_REPORTS, ...existing };
+      const merged = { ...INITIAL_REPORTS, ...existing };
+      INITIAL_STUDENTS.filter((s) => s.className === '9C').forEach((s) => {
+        if (merged[s.id]) {
+          merged[s.id] = {
+            ...merged[s.id],
+            student: s,
+          };
+        } else {
+          merged[s.id] = INITIAL_REPORTS[s.id];
+        }
+      });
+      return merged;
     } catch {
       return INITIAL_REPORTS;
     }
