@@ -17,6 +17,13 @@ import {
 } from 'lucide-react';
 import { Student, StudentReportData, Teacher, TahfizSurahRecord } from '../types';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
+import {
+  IndonesianDatePicker,
+  formatToIndonesianDate,
+  getTodayIso,
+  getYesterdayIso,
+  parseDateString
+} from './IndonesianDatePicker';
 
 interface AttendanceAndHafalanModalProps {
   isOpen: boolean;
@@ -24,7 +31,8 @@ interface AttendanceAndHafalanModalProps {
   students: Student[];
   reports: Record<string, StudentReportData>;
   currentTeacher?: Teacher;
-  teachers: Teacher[];
+  teachers?: Teacher[];
+  teacherName?: string;
   selectedClass?: string;
   initialStudentId?: string;
   initialAttendanceDate?: string;
@@ -38,27 +46,7 @@ interface AttendanceAndHafalanModalProps {
 }
 
 export function formatIndonesianDate(dateStr: string, includeDayName = true): string {
-  if (!dateStr) return '-';
-  try {
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return dateStr;
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    const date = new Date(year, month, day);
-    if (isNaN(date.getTime())) return dateStr;
-    
-    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    const dayName = days[date.getDay()];
-    const mName = months[month];
-    return includeDayName ? `${dayName}, ${day} ${mName} ${year}` : `${day} ${mName} ${year}`;
-  } catch {
-    return dateStr;
-  }
+  return formatToIndonesianDate(dateStr, includeDayName);
 }
 
 export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps> = ({
@@ -120,13 +108,25 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
   useEffect(() => {
     if (selectedStudent && currentReport) {
       setAttendanceNote(currentReport.adab?.generalNotes || '');
-      // If student has last record, default next surah
-      const lastRec = currentReport.tahfizRecords[0];
-      if (lastRec) {
-        // keep or recommend next
-      }
     }
   }, [selectedStudentId]);
+
+  // Sync when initialStudentId or students list changes
+  useEffect(() => {
+    if (initialStudentId && students.some((s) => s.id === initialStudentId)) {
+      setSelectedStudentId(initialStudentId);
+      const s = students.find((std) => std.id === initialStudentId);
+      if (s) setClassFilter(s.className);
+    }
+  }, [initialStudentId, students]);
+
+  // Sync when initialAttendanceDate changes
+  useEffect(() => {
+    if (initialAttendanceDate) {
+      setAttendanceDate(initialAttendanceDate);
+      setSetoranDate(initialAttendanceDate);
+    }
+  }, [initialAttendanceDate]);
 
   // When surah changes, adjust verses
   const handleSurahChange = (surahNum: number) => {
@@ -337,24 +337,20 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              {/* Tanggal Kehadiran Picker */}
-              <div className="md:col-span-6 space-y-1">
-                <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-emerald-700" />
-                  <span>Tanggal Kehadiran / Halaqah:</span>
-                  <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
+              {/* Tanggal Kehadiran Picker with Interactive Indonesian Calendar */}
+              <div className="md:col-span-6">
+                <IndonesianDatePicker
+                  label="Tanggal Kehadiran / Halaqah Santri"
                   value={attendanceDate}
-                  onChange={(e) => setAttendanceDate(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-600 shadow-2xs cursor-pointer"
+                  onChange={(newDate) => {
+                    setAttendanceDate(newDate);
+                    if (setoranDate === attendanceDate) {
+                      setSetoranDate(newDate);
+                    }
+                  }}
+                  colorTheme="emerald"
+                  required
                 />
-                <div className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1 pt-0.5">
-                  <span>📅 Terpilih:</span>
-                  <span>{formatIndonesianDate(attendanceDate)}</span>
-                </div>
               </div>
 
               {/* Status Presensi (H/S/I/A) Radio Cards */}
@@ -451,32 +447,23 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
               <div className="space-y-4">
                 {/* Bar Tanggal Setoran Hafalan */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-white p-3.5 rounded-xl border border-blue-200 shadow-2xs">
-                  {/* Tanggal Menghafal / Setoran */}
-                  <div className="md:col-span-6 space-y-1">
-                    <label className="block text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-blue-700" />
-                      <span>Tanggal Menghafal / Setoran Hafalan:</span>
-                      <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      required={isRecordHafalan}
+                  {/* Tanggal Menghafal / Setoran with Indonesian Day & Calendar */}
+                  <div className="md:col-span-6">
+                    <IndonesianDatePicker
+                      label="Tanggal Menghafal / Setoran Hafalan Santri"
                       value={setoranDate}
-                      onChange={(e) => setSetoranDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 cursor-pointer"
+                      onChange={(newDate) => setSetoranDate(newDate)}
+                      colorTheme="blue"
+                      required={isRecordHafalan}
+                      quickAction={
+                        setoranDate !== attendanceDate
+                          ? {
+                              label: 'Samakan dgn Tgl Kehadiran',
+                              onClick: () => setSetoranDate(attendanceDate),
+                            }
+                          : undefined
+                      }
                     />
-                    <div className="text-[11px] text-blue-800 font-semibold flex items-center justify-between pt-0.5">
-                      <span>📅 Tgl Setoran: {formatIndonesianDate(setoranDate)}</span>
-                      {setoranDate !== attendanceDate && (
-                        <button
-                          type="button"
-                          onClick={() => setSetoranDate(attendanceDate)}
-                          className="text-[10px] text-blue-600 underline font-medium hover:text-blue-800 cursor-pointer"
-                        >
-                          Samakan dgn Tgl Hadir
-                        </button>
-                      )}
-                    </div>
                   </div>
 
                   {/* Kategori Jenis Setoran */}
@@ -720,7 +707,7 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
                         {rec.surahName} ({rec.ayatFrom}-{rec.ayatTo})
                       </div>
                       <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                        <span>📅 {formatIndonesianDate(rec.date, false)}</span>
+                        <span className="font-semibold text-blue-800">📅 {formatIndonesianDate(rec.date, true)}</span>
                         <span>•</span>
                         <span className="font-bold text-emerald-700">Nilai: {rec.gradeScore}</span>
                       </div>

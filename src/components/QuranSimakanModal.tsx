@@ -23,6 +23,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Student, TahfizSurahRecord } from '../types';
+import { formatToIndonesianDate } from './IndonesianDatePicker';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { getSurahDetail, SurahDetail, AyahData } from '../utils/quranService';
 
@@ -345,7 +346,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
             )}
 
             {/* Tanggal Setoran Hafalan */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-xl border border-slate-300 shadow-2xs">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-xl border border-slate-300 shadow-2xs">
               <Calendar className="w-3.5 h-3.5 text-emerald-700" />
               <label className="font-bold text-slate-800">Tgl Setoran:</label>
               <input
@@ -354,6 +355,9 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                 onChange={(e) => setSetoranDate(e.target.value)}
                 className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-0.5 text-xs text-slate-900 font-bold focus:ring-1 focus:ring-emerald-600 cursor-pointer"
               />
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {formatToIndonesianDate(setoranDate, true)}
+              </span>
             </div>
           </div>
 

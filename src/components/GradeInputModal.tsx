@@ -4,6 +4,7 @@ import { StudentReportData, TahfizSurahRecord, IqroJilid, IqroMaterialAspect, Iq
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { IQRO_AMM_JILID_DATA, getDefaultAspectsForJilid, calculateIqroAverage, generateDefaultJilidHistory } from '../data/iqroData';
 import { QuranSimakanModal } from './QuranSimakanModal';
+import { formatToIndonesianDate } from './IndonesianDatePicker';
 
 interface GradeInputModalProps {
   isOpen: boolean;
@@ -454,6 +455,10 @@ export const GradeInputModal: React.FC<GradeInputModalProps> = ({
                       onChange={(e) => setSetoranDate(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-bold cursor-pointer"
                     />
+                    <div className="text-[11px] text-emerald-800 font-bold mt-1 flex items-center gap-1">
+                      <span>📅 Terpilih:</span>
+                      <span>{formatToIndonesianDate(setoranDate, true)}</span>
+                    </div>
                   </div>
 
                   {/* Nilai Setoran */}
@@ -549,9 +554,9 @@ export const GradeInputModal: React.FC<GradeInputModalProps> = ({
                             </td>
                             <td className="py-2.5 px-3 text-slate-600 font-semibold text-[11px]">
                               {rec.date ? (
-                                <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-mono">
+                                <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-semibold text-[11px]">
                                   <Calendar className="w-3 h-3 text-emerald-700" />
-                                  {rec.date}
+                                  {formatToIndonesianDate(rec.date, true)}
                                 </span>
                               ) : (
                                 '-'

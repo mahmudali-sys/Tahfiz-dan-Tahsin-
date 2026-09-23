@@ -24,6 +24,7 @@ import { RapotPreviewModal } from './RapotPreviewModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { BulkStudentImportModal } from './BulkStudentImportModal';
 import { AttendanceAndHafalanModal } from './AttendanceAndHafalanModal';
+import { formatToIndonesianDate } from './IndonesianDatePicker';
 import { TahfizSurahRecord } from '../types';
 import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
 
@@ -419,14 +420,38 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       </div>
                     </td>
 
-                    {/* Setoran Tahfiz */}
-                    <td className="py-3 px-4 text-center">
-                      <span className="font-bold text-xs text-slate-800">
-                        {report.tahfizRecords.length} Catatan
-                      </span>
-                      <div className="text-[10px] text-slate-500">
-                        {report.summaryHafalan.totalAyatHafal} Ayat
-                      </div>
+                    {/* Setoran Tahfiz & Tanggal (Klik Kolom untuk Form) */}
+                    <td
+                      onClick={() => {
+                        setModalInitialStudentId(student.id);
+                        setIsAttendanceModalOpen(true);
+                      }}
+                      className="py-3 px-4 text-center hover:bg-blue-50/70 transition-colors cursor-pointer group"
+                      title={`Klik untuk membuka form tanggal & setoran: ${student.name}`}
+                    >
+                      {report.tahfizRecords.length > 0 ? (
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-xs text-slate-800 group-hover:text-blue-900">
+                            {report.tahfizRecords[0].surahName}
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            {report.tahfizRecords.length} Catatan • {report.summaryHafalan.totalAyatHafal} Ayat
+                          </div>
+                          <div className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-900 bg-blue-100 border border-blue-300 px-1.5 py-0.5 rounded shadow-2xs group-hover:bg-blue-200">
+                            <Calendar className="w-3 h-3 text-blue-700" />
+                            <span>{formatToIndonesianDate(report.tahfizRecords[0].date, true)}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="font-semibold text-xs text-slate-400 italic">
+                            Belum ada setoran
+                          </span>
+                          <div className="text-[10px] text-blue-600 group-hover:underline font-bold mt-0.5">
+                            + Input Setoran
+                          </div>
+                        </div>
+                      )}
                     </td>
 
                     {/* Tuntas Mutqin */}
@@ -570,6 +595,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         students={filteredStudents.length > 0 ? filteredStudents : students}
         reports={reports}
         teacherName={currentTeacher.name}
+        selectedClass={selectedClass !== 'all' ? selectedClass : '7B'}
         initialStudentId={modalInitialStudentId}
         onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
       />

@@ -36,6 +36,7 @@ import { RapotPreviewModal } from './RapotPreviewModal';
 import { GradeInputModal } from './GradeInputModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { AttendanceAndHafalanModal, formatIndonesianDate } from './AttendanceAndHafalanModal';
+import { getTodayIso, getYesterdayIso } from './IndonesianDatePicker';
 import { getPredicate, getPredicateColor } from '../data/quranData';
 
 interface PengolahanNilaiViewProps {
@@ -992,8 +993,11 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                   <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">
                     Presensi Halaqah & Setoran Al-Qur'an
                   </div>
-                  <h3 className="text-base sm:text-lg font-black text-white">
-                    Tanggal Pertemuan: {formatIndonesianDate(attendanceDate)}
+                  <h3 className="text-base sm:text-lg font-black text-white flex flex-wrap items-center gap-2">
+                    <span>Tanggal Pertemuan:</span>
+                    <span className="bg-emerald-700/90 border border-emerald-500/70 px-2.5 py-0.5 rounded-lg text-emerald-100 font-extrabold text-sm sm:text-base">
+                      {formatIndonesianDate(attendanceDate, true)}
+                    </span>
                   </h3>
                   <p className="text-[11px] text-emerald-200">
                     Kelas {selectedClass} • Guru Pengampu: {assignedTeacher.name}
@@ -1003,20 +1007,28 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
 
               {/* Date Input and Open Form Button */}
               <div className="flex flex-wrap items-center gap-2.5">
-                <div className="flex items-center gap-2 bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-700/60 text-xs">
-                  <span className="text-emerald-200 font-bold text-[11px]">Pilih Tanggal:</span>
+                <div className="flex items-center gap-2 bg-emerald-950/70 p-1.5 rounded-xl border border-emerald-700/60 text-xs">
+                  <span className="text-emerald-200 font-bold text-[11px] pl-1.5">Pilih Tanggal:</span>
                   <input
                     type="date"
                     value={attendanceDate}
                     onChange={(e) => setAttendanceDate(e.target.value)}
                     className="bg-white text-slate-900 font-bold px-2 py-1 rounded-lg text-xs cursor-pointer shadow-2xs focus:ring-2 focus:ring-emerald-400"
+                    title="Klik untuk memilih tanggal dan hari"
                   />
                   <button
                     type="button"
-                    onClick={() => setAttendanceDate(new Date().toISOString().split('T')[0])}
+                    onClick={() => setAttendanceDate(getTodayIso())}
                     className="px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
                   >
                     Hari Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceDate(getYesterdayIso())}
+                    className="px-2 py-1 bg-emerald-800/90 hover:bg-emerald-700 text-emerald-100 rounded-lg text-[10px] font-semibold cursor-pointer transition-colors"
+                  >
+                    Kemarin
                   </button>
                 </div>
 
@@ -1027,6 +1039,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                     setIsAttendanceHafalanModalOpen(true);
                   }}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                  title="Buka form input tanggal kehadiran dan tanggal murid menghafal / setoran hafalan"
                 >
                   <Plus className="w-4 h-4" />
                   <span>+ Form Tanggal Kehadiran & Setoran</span>
@@ -1069,11 +1082,16 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                     <th className="py-2.5 px-3 w-36">NISN / NIS</th>
                     <th className="py-2.5 px-4 min-w-[200px]">Nama Santri</th>
                     <th className="py-2.5 px-2 text-center w-16">L/P</th>
-                    <th className="py-2.5 px-3 text-center min-w-[160px]">
-                      Presensi ({formatIndonesianDate(attendanceDate, false)})
+                    <th className="py-2.5 px-3 text-center min-w-[170px]">
+                      Presensi ({formatIndonesianDate(attendanceDate, true)})
                     </th>
                     <th className="py-2.5 px-3 text-center min-w-[140px]">Tahsin / Iqra</th>
-                    <th className="py-2.5 px-3 text-center min-w-[180px]">Setoran Tahfiz & Tanggal</th>
+                    <th className="py-2.5 px-3 text-center min-w-[200px]">
+                      <div>Setoran Tahfiz & Tanggal</div>
+                      <div className="text-[9px] font-normal text-slate-500 normal-case tracking-normal">
+                        (Klik kolom untuk buka form)
+                      </div>
+                    </th>
                     <th className="py-2.5 px-3 min-w-[180px]">Catatan Perkembangan</th>
                     <th className="py-2.5 px-3 text-center min-w-[180px]">Aksi Guru</th>
                   </tr>
@@ -1183,23 +1201,37 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
                           </div>
                         </td>
 
-                        {/* Setoran Tahfiz Terakhir & Tanggal */}
-                        <td className="py-3 px-3 text-center">
+                        {/* Setoran Tahfiz Terakhir & Tanggal (Klik Kolom untuk Form) */}
+                        <td
+                          onClick={() => {
+                            setModalInitialStudentId(student.id);
+                            setIsAttendanceHafalanModalOpen(true);
+                          }}
+                          className="py-3 px-3 text-center hover:bg-blue-50/80 transition-colors cursor-pointer group"
+                          title={`Klik untuk membuka form tanggal & setoran: ${student.name}`}
+                        >
                           {lastTahfiz ? (
-                            <div>
-                              <div className="font-bold text-slate-900 text-xs">
-                                {lastTahfiz.surahName}
+                            <div className="space-y-0.5">
+                              <div className="font-bold text-slate-900 text-xs group-hover:text-blue-900">
+                                {lastTahfiz.surahName}{' '}
+                                <span className="text-[10px] font-normal text-slate-500">
+                                  ({lastTahfiz.ayatFrom}–{lastTahfiz.ayatTo})
+                                </span>
                               </div>
                               <div className="text-[11px] text-slate-500">
-                                Ayat {lastTahfiz.ayatFrom}–{lastTahfiz.ayatTo} • Nilai: <strong className="text-emerald-700">{lastTahfiz.gradeScore}</strong>
+                                Nilai: <strong className="text-emerald-700">{lastTahfiz.gradeScore}</strong> • Predikat: <span className="font-bold text-slate-700">{lastTahfiz.predicate || 'Mumtaz'}</span>
                               </div>
-                              <div className="inline-flex items-center gap-1 mt-1 text-[10px] text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-bold">
-                                <Calendar className="w-3 h-3 text-blue-600" />
-                                <span>Tgl: {lastTahfiz.date || 'Belum dicatat'}</span>
+                              {/* Prominent Tanggal dan Hari Badge */}
+                              <div className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-blue-900 bg-blue-100 border border-blue-300 px-2 py-0.5 rounded shadow-2xs group-hover:bg-blue-200 transition-colors">
+                                <Calendar className="w-3 h-3 text-blue-700" />
+                                <span>{formatIndonesianDate(lastTahfiz.date, true)}</span>
                               </div>
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-xs italic">Belum ada setoran</span>
+                            <div className="inline-flex items-center gap-1 text-[11px] text-blue-700 group-hover:text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg font-semibold group-hover:bg-blue-100 transition-colors">
+                              <Plus className="w-3 h-3" />
+                              <span>+ Form Tanggal & Setoran</span>
+                            </div>
                           )}
                         </td>
 
@@ -1626,7 +1658,9 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
         students={filteredStudents.length > 0 ? filteredStudents : students}
         reports={reports}
         teacherName={currentTeacher?.name || assignedTeacher.name}
+        selectedClass={selectedClass === 'all' ? '7B' : selectedClass}
         initialStudentId={modalInitialStudentId}
+        initialAttendanceDate={attendanceDate}
         onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
       />
 
