@@ -24,7 +24,7 @@ import { RapotPreviewModal } from './RapotPreviewModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { BulkStudentImportModal } from './BulkStudentImportModal';
 import { AttendanceAndHafalanModal } from './AttendanceAndHafalanModal';
-import { formatToIndonesianDate } from './IndonesianDatePicker';
+import { formatToIndonesianDate, getTodayIso, toIsoDate } from './IndonesianDatePicker';
 import { TahfizSurahRecord } from '../types';
 import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
 
@@ -61,6 +61,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [modalInitialStudentId, setModalInitialStudentId] = useState<string | undefined>(undefined);
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => getTodayIso());
 
   const handleSaveAttendanceAndSetoran = (params: {
     studentId: string;
@@ -264,6 +265,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Quick Date Selector for Active Halaqah Session */}
+          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl text-xs">
+            <Calendar className="w-3.5 h-3.5 text-blue-700" />
+            <span className="text-[11px] font-bold text-blue-900 hidden sm:inline">Tanggal:</span>
+            <input
+              type="date"
+              value={attendanceDate}
+              onChange={(e) => setAttendanceDate(e.target.value)}
+              className="bg-white border border-blue-300 text-blue-950 font-bold px-2 py-0.5 rounded-lg text-xs cursor-pointer shadow-2xs focus:ring-2 focus:ring-blue-500"
+              title="Pilih tanggal halaqah & presensi"
+            />
+          </div>
+
           <button
             onClick={() => {
               setModalInitialStudentId(undefined);
@@ -600,6 +614,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         teacherName={currentTeacher.name}
         selectedClass={selectedClass !== 'all' ? selectedClass : '7B'}
         initialStudentId={modalInitialStudentId}
+        initialAttendanceDate={attendanceDate}
         onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
       />
     </div>

@@ -78,7 +78,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
   const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
 
   // Tanggal Presensi & Modal Setoran Halaqah
-  const [attendanceDate, setAttendanceDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => getTodayIso());
   const [isAttendanceHafalanModalOpen, setIsAttendanceHafalanModalOpen] = useState<boolean>(false);
   const [modalInitialStudentId, setModalInitialStudentId] = useState<string | undefined>(undefined);
 

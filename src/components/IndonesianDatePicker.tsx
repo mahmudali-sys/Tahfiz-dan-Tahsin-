@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Check, Clock } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { Calendar, ChevronLeft, ChevronRight, Check, Clock, CalendarDays } from 'lucide-react';
 
 export const INDONESIAN_DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 export const INDONESIAN_MONTHS = [
@@ -7,29 +7,127 @@ export const INDONESIAN_MONTHS = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-export function parseDateString(dateStr: string): { year: number; month: number; day: number; dayName: string; formatted: string } | null {
-  if (!dateStr) return null;
-  try {
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return null;
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // 0-indexed
-    const day = parseInt(parts[2], 10);
-    const date = new Date(year, month, day);
-    if (isNaN(date.getTime())) return null;
-
-    const dayName = INDONESIAN_DAYS[date.getDay()];
+/**
+ * Universal date parser that handles ISO (YYYY-MM-DD), slash (DD/MM/YYYY or YYYY/MM/DD),
+ * dash (DD-MM-YYYY), ISO timestamps, and Indonesian text (e.g., "22 Desember 2025").
+ */
+export function parseDateString(dateStr?: string | null): { 
+  year: number; 
+  month: number; 
+  day: number; 
+  dayName: string; 
+  formatted: string;
+  iso: string;
+} {
+  const fallbackDate = new Date();
+  
+  if (!dateStr || typeof dateStr !== 'string' || dateStr.trim() === '') {
+    const year = fallbackDate.getFullYear();
+    const month = fallbackDate.getMonth();
+    const day = fallbackDate.getDate();
+    const dayName = INDONESIAN_DAYS[fallbackDate.getDay()];
     const monthName = INDONESIAN_MONTHS[month];
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const formatted = `${dayName}, ${day} ${monthName} ${year}`;
-    return { year, month, day, dayName, formatted };
-  } catch {
-    return null;
+    return { year, month, day, dayName, formatted, iso };
   }
+
+  try {
+    let clean = dateStr.trim();
+    if (clean.includes('T')) {
+      clean = clean.split('T')[0];
+    }
+
+    // Try text with Indonesian month names e.g. "22 Desember 2025"
+    for (let m = 0; m < INDONESIAN_MONTHS.length; m++) {
+      const mName = INDONESIAN_MONTHS[m];
+      if (clean.toLowerCase().includes(mName.toLowerCase())) {
+        const words = clean.replace(/[,]/g, ' ').split(/\s+/).filter(Boolean);
+        const mIdx = words.findIndex((w) => w.toLowerCase().includes(mName.toLowerCase()));
+        if (mIdx > 0 && mIdx < words.length - 1) {
+          const day = parseInt(words[mIdx - 1], 10);
+          const year = parseInt(words[mIdx + 1], 10);
+          if (!isNaN(day) && !isNaN(year) && year > 1900 && year < 2100) {
+            const date = new Date(year, m, day);
+            if (!isNaN(date.getTime())) {
+              const dayName = INDONESIAN_DAYS[date.getDay()];
+              const iso = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const formatted = `${dayName}, ${day} ${mName} ${year}`;
+              return { year, month: m, day, dayName, formatted, iso };
+            }
+          }
+        }
+      }
+    }
+
+    // Check delimited formats: YYYY-MM-DD or DD-MM-YYYY or DD/MM/YYYY or YYYY/MM/DD
+    const parts = clean.split(/[/.-]/);
+    if (parts.length === 3) {
+      let p0 = parseInt(parts[0], 10);
+      let p1 = parseInt(parts[1], 10);
+      let p2 = parseInt(parts[2], 10);
+
+      let year = p0;
+      let month = p1 - 1;
+      let day = p2;
+
+      // If parts[2] has 4 digits (e.g. 24-09-2026 or 24/09/2026)
+      if (parts[2].length === 4 || p2 > 1000) {
+        day = p0;
+        month = p1 - 1;
+        year = p2;
+      } else if (parts[0].length === 4 || p0 > 1000) {
+        // YYYY-MM-DD
+        year = p0;
+        month = p1 - 1;
+        day = p2;
+      }
+
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day) && year > 1900 && year < 2100) {
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+          const dayName = INDONESIAN_DAYS[date.getDay()];
+          const monthName = INDONESIAN_MONTHS[month];
+          const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const formatted = `${dayName}, ${day} ${monthName} ${year}`;
+          return { year, month, day, dayName, formatted, iso };
+        }
+      }
+    }
+
+    // Fallback standard JS Date parse
+    const d = new Date(clean);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const day = d.getDate();
+      const dayName = INDONESIAN_DAYS[d.getDay()];
+      const monthName = INDONESIAN_MONTHS[month];
+      const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const formatted = `${dayName}, ${day} ${monthName} ${year}`;
+      return { year, month, day, dayName, formatted, iso };
+    }
+  } catch (err) {
+    console.error('Error parsing date string:', err);
+  }
+
+  // Safe fallback to today
+  const year = fallbackDate.getFullYear();
+  const month = fallbackDate.getMonth();
+  const day = fallbackDate.getDate();
+  const dayName = INDONESIAN_DAYS[fallbackDate.getDay()];
+  const monthName = INDONESIAN_MONTHS[month];
+  const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const formatted = `${dayName}, ${day} ${monthName} ${year}`;
+  return { year, month, day, dayName, formatted, iso };
 }
 
-export function formatToIndonesianDate(dateStr: string, includeDayName = true): string {
+export function toIsoDate(dateStr?: string | null): string {
+  return parseDateString(dateStr).iso;
+}
+
+export function formatToIndonesianDate(dateStr?: string | null, includeDayName = true): string {
   const parsed = parseDateString(dateStr);
-  if (!parsed) return dateStr || '-';
   if (includeDayName) return parsed.formatted;
   return `${parsed.day} ${INDONESIAN_MONTHS[parsed.month]} ${parsed.year}`;
 }
@@ -53,7 +151,7 @@ export function getYesterdayIso(): string {
 
 interface IndonesianDatePickerProps {
   label: string;
-  value: string; // YYYY-MM-DD
+  value: string; // YYYY-MM-DD or any recognized date string
   onChange: (newDateStr: string) => void;
   colorTheme?: 'emerald' | 'blue' | 'amber';
   helperText?: string;
@@ -74,21 +172,21 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
   quickAction,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // Parse current selected date
+  // Guarantee clean parsed date object with day name, formatted string, and ISO value
   const parsed = useMemo(() => parseDateString(value), [value]);
+  const isoValue = parsed.iso;
 
   // Calendar view month & year state
-  const [viewYear, setViewYear] = useState<number>(() => parsed?.year || new Date().getFullYear());
-  const [viewMonth, setViewMonth] = useState<number>(() => parsed?.month ?? new Date().getMonth());
+  const [viewYear, setViewYear] = useState<number>(() => parsed.year);
+  const [viewMonth, setViewMonth] = useState<number>(() => parsed.month);
 
   // Sync view month when value changes
   React.useEffect(() => {
-    if (parsed) {
-      setViewYear(parsed.year);
-      setViewMonth(parsed.month);
-    }
-  }, [value]);
+    setViewYear(parsed.year);
+    setViewMonth(parsed.month);
+  }, [parsed.year, parsed.month]);
 
   // Generate calendar grid for current viewMonth
   const calendarDays = useMemo(() => {
@@ -97,7 +195,6 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
     const prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
 
     const days: { dayNum: number; isCurrentMonth: boolean; dateStr: string; isToday: boolean; isSelected: boolean }[] = [];
-
     const todayStr = getTodayIso();
 
     // Previous month padding
@@ -111,7 +208,7 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
         isCurrentMonth: false,
         dateStr,
         isToday: dateStr === todayStr,
-        isSelected: dateStr === value,
+        isSelected: dateStr === isoValue,
       });
     }
 
@@ -123,7 +220,7 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
         isCurrentMonth: true,
         dateStr,
         isToday: dateStr === todayStr,
-        isSelected: dateStr === value,
+        isSelected: dateStr === isoValue,
       });
     }
 
@@ -138,12 +235,12 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
         isCurrentMonth: false,
         dateStr,
         isToday: dateStr === todayStr,
-        isSelected: dateStr === value,
+        isSelected: dateStr === isoValue,
       });
     }
 
     return days;
-  }, [viewYear, viewMonth, value]);
+  }, [viewYear, viewMonth, isoValue]);
 
   const handlePrevMonth = () => {
     if (viewMonth === 0) {
@@ -170,9 +267,11 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
       activeDay: 'bg-emerald-700 text-white font-black shadow-md',
       todayBorder: 'border-emerald-500 font-bold text-emerald-700',
       buttonBg: 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300',
-      focusRing: 'focus:ring-emerald-500',
+      focusRing: 'focus:ring-emerald-500 focus:border-emerald-500',
       iconColor: 'text-emerald-700',
-      bannerBg: 'bg-emerald-50/80 border-emerald-200',
+      bannerBg: 'bg-emerald-50/90 border-emerald-200',
+      bannerBorder: 'border-emerald-300',
+      tagBg: 'bg-emerald-100 text-emerald-900 border-emerald-300',
     },
     blue: {
       badgeBg: 'bg-blue-700 text-white',
@@ -180,9 +279,11 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
       activeDay: 'bg-blue-700 text-white font-black shadow-md',
       todayBorder: 'border-blue-500 font-bold text-blue-700',
       buttonBg: 'bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-300',
-      focusRing: 'focus:ring-blue-500',
+      focusRing: 'focus:ring-blue-500 focus:border-blue-500',
       iconColor: 'text-blue-700',
-      bannerBg: 'bg-blue-50/80 border-blue-200',
+      bannerBg: 'bg-blue-50/90 border-blue-200',
+      bannerBorder: 'border-blue-300',
+      tagBg: 'bg-blue-100 text-blue-900 border-blue-300',
     },
     amber: {
       badgeBg: 'bg-amber-600 text-white',
@@ -190,17 +291,33 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
       activeDay: 'bg-amber-600 text-white font-black shadow-md',
       todayBorder: 'border-amber-500 font-bold text-amber-700',
       buttonBg: 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300',
-      focusRing: 'focus:ring-amber-500',
+      focusRing: 'focus:ring-amber-500 focus:border-amber-500',
       iconColor: 'text-amber-700',
-      bannerBg: 'bg-amber-50/80 border-amber-200',
+      bannerBg: 'bg-amber-50/90 border-amber-200',
+      bannerBorder: 'border-amber-300',
+      tagBg: 'bg-amber-100 text-amber-900 border-amber-300',
     },
   }[colorTheme];
 
+  const triggerNativePicker = () => {
+    if (dateInputRef.current) {
+      try {
+        if (typeof dateInputRef.current.showPicker === 'function') {
+          dateInputRef.current.showPicker();
+        } else {
+          dateInputRef.current.focus();
+        }
+      } catch {
+        dateInputRef.current.focus();
+      }
+    }
+  };
+
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {/* Label and Quick Action */}
       <div className="flex items-center justify-between">
-        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+        <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
           <Calendar className={`w-4 h-4 ${themeClasses.iconColor}`} />
           <span>{label}</span>
           {required && <span className="text-rose-500">*</span>}
@@ -209,57 +326,102 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
           <button
             type="button"
             onClick={quickAction.onClick}
-            className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+            className="text-[11px] font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer"
           >
             {quickAction.label}
           </button>
         )}
       </div>
 
-      {/* Main Interactive Display Box */}
-      <div
-        className={`p-2.5 sm:p-3 rounded-xl border transition-all ${
-          isOpen ? 'ring-2 ring-emerald-500 border-emerald-400 bg-white shadow-sm' : `${themeClasses.bannerBg} hover:border-slate-400 cursor-pointer`
-        }`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Big Hari & Tanggal Badge */}
-            <div
-              className={`px-3 py-1.5 rounded-lg text-center font-bold shrink-0 ${themeClasses.badgeBg}`}
+      {/* Main Interactive Compound Component */}
+      <div className={`rounded-2xl border ${themeClasses.bannerBorder} ${themeClasses.bannerBg} p-2.5 sm:p-3 shadow-2xs space-y-2.5`}>
+        {/* Row 1: Direct Native Date Input + Quick Preset Buttons */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+          {/* Real, interactive date input with calendar trigger */}
+          <div className="relative flex-1 min-w-[160px]">
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={isoValue}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) onChange(val);
+              }}
+              className={`w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-extrabold text-slate-900 shadow-2xs cursor-pointer focus:ring-2 ${themeClasses.focusRing}`}
+              title="Klik untuk memilih tanggal langsung lewat kalender sistem"
+            />
+          </div>
+
+          {/* Quick Action Presets: Hari Ini & Kemarin */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => onChange(getTodayIso())}
+              className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                isoValue === getTodayIso()
+                  ? `${themeClasses.badgeBg} border-transparent shadow-xs`
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+              }`}
+              title="Pilih tanggal hari ini"
             >
-              <div className="text-[10px] tracking-wider uppercase font-black">
-                {parsed?.dayName || 'HARI'}
-              </div>
-              <div className="text-lg leading-tight font-black">
-                {parsed?.day || '--'}
-              </div>
+              Hari Ini
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange(getYesterdayIso())}
+              className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                isoValue === getYesterdayIso()
+                  ? `${themeClasses.badgeBg} border-transparent shadow-xs`
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+              }`}
+              title="Pilih tanggal kemarin"
+            >
+              Kemarin
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
+                isOpen
+                  ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                  : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+              }`}
+              title="Buka / tutup kalender interaktif Indonesia"
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>{isOpen ? 'Tutup' : 'Kalender'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Rich Indonesian Day & Formatted Date Display Card */}
+        <div 
+          onClick={triggerNativePicker}
+          className="bg-white/90 hover:bg-white border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between gap-3 cursor-pointer transition-colors shadow-2xs group"
+          title="Klik untuk mengubah tanggal lewat pemilih kalender"
+        >
+          <div className="flex items-center gap-3">
+            {/* Big Badge: Hari & Tanggal */}
+            <div className={`px-2.5 py-1 rounded-lg text-center font-black shrink-0 ${themeClasses.badgeBg}`}>
+              <div className="text-[9px] tracking-wider uppercase">{parsed.dayName}</div>
+              <div className="text-base sm:text-lg leading-tight">{parsed.day}</div>
             </div>
 
-            {/* Date Details Text */}
+            {/* Detailed Indonesian Date Text */}
             <div>
-              <div className="text-xs sm:text-sm font-black text-slate-900">
-                {parsed?.formatted || 'Belum dipilih'}
+              <div className="text-xs sm:text-sm font-extrabold text-slate-900 group-hover:text-blue-900 flex items-center gap-1.5">
+                <span>{parsed.formatted}</span>
               </div>
               <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
                 <Clock className="w-3 h-3 text-slate-400" />
-                <span>
-                  {parsed
-                    ? `Hari ${parsed.dayName} • Tanggal ${parsed.day} ${INDONESIAN_MONTHS[parsed.month]} ${parsed.year}`
-                    : 'Klik untuk membuka kalender'}
-                </span>
+                <span>Format: {isoValue} (Tahun {parsed.year})</span>
               </div>
             </div>
           </div>
 
-          {/* Toggle Button */}
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${themeClasses.buttonBg}`}
-            >
-              {isOpen ? 'Tutup Kalender' : 'Pilih / Ganti'}
-            </span>
+          <div className="text-[11px] font-bold text-blue-700 group-hover:underline shrink-0 flex items-center gap-1">
+            <span>Ubah Tanggal</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </div>
       </div>
@@ -374,20 +536,11 @@ export const IndonesianDatePicker: React.FC<IndonesianDatePickerProps> = ({
               }}
               className="text-[11px] font-bold text-slate-500 hover:text-slate-800 cursor-pointer px-2 py-0.5"
             >
-              Tutup
+              Tutup Kalender
             </button>
           </div>
         </div>
       )}
-
-      {/* Hidden/Native fallback sync input for form submission & accessibility */}
-      <input
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="sr-only"
-        aria-hidden="true"
-      />
 
       {helperText && <p className="text-[11px] text-slate-500">{helperText}</p>}
     </div>

@@ -22,7 +22,8 @@ import {
   formatToIndonesianDate,
   getTodayIso,
   getYesterdayIso,
-  parseDateString
+  parseDateString,
+  toIsoDate
 } from './IndonesianDatePicker';
 
 interface AttendanceAndHafalanModalProps {
@@ -85,14 +86,14 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
   const currentReport = selectedStudent ? reports[selectedStudent.id] : null;
 
   // Form State: 1. Tanggal Kehadiran & Status Presensi
-  const todayIso = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const [attendanceDate, setAttendanceDate] = useState<string>(initialAttendanceDate || todayIso);
+  const todayIso = useMemo(() => getTodayIso(), []);
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => toIsoDate(initialAttendanceDate || getTodayIso()));
   const [attendanceStatus, setAttendanceStatus] = useState<'H' | 'S' | 'I' | 'A'>('H');
   const [attendanceNote, setAttendanceNote] = useState<string>('');
 
   // Form State: 2. Tanggal Menghafal / Setoran Hafalan
   const [isRecordHafalan, setIsRecordHafalan] = useState<boolean>(true);
-  const [setoranDate, setSetoranDate] = useState<string>(initialAttendanceDate || todayIso);
+  const [setoranDate, setSetoranDate] = useState<string>(() => toIsoDate(initialAttendanceDate || getTodayIso()));
   const [setoranType, setSetoranType] = useState<'Ziyadah' | 'Murojaah' | 'Tasmi' | 'Ujian'>('Ziyadah');
   const [selectedSurahNumber, setSelectedSurahNumber] = useState<number>(78);
   const [ayatFrom, setAyatFrom] = useState<number>(1);
@@ -120,13 +121,18 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
     }
   }, [initialStudentId, students]);
 
-  // Sync when initialAttendanceDate changes
+  // Sync when initialAttendanceDate changes or modal opens
   useEffect(() => {
     if (initialAttendanceDate) {
-      setAttendanceDate(initialAttendanceDate);
-      setSetoranDate(initialAttendanceDate);
+      const validIso = toIsoDate(initialAttendanceDate);
+      setAttendanceDate(validIso);
+      setSetoranDate(validIso);
+    } else {
+      const today = getTodayIso();
+      setAttendanceDate(today);
+      setSetoranDate(today);
     }
-  }, [initialAttendanceDate]);
+  }, [initialAttendanceDate, isOpen]);
 
   // When surah changes, adjust verses
   const handleSurahChange = (surahNum: number) => {
@@ -145,13 +151,11 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
   // Quick preset dates
   const handleSetQuickDate = (type: 'today' | 'yesterday' | 'same_as_attendance') => {
     if (type === 'today') {
-      const now = new Date().toISOString().split('T')[0];
+      const now = getTodayIso();
       setAttendanceDate(now);
       setSetoranDate(now);
     } else if (type === 'yesterday') {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      const yStr = d.toISOString().split('T')[0];
+      const yStr = getYesterdayIso();
       setAttendanceDate(yStr);
       setSetoranDate(yStr);
     } else if (type === 'same_as_attendance') {
