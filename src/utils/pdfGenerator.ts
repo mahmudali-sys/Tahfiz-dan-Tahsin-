@@ -85,8 +85,9 @@ export function generateRapotPDF(
   let currentY = 8;
 
   // 1. HEADER DENGAN LOGO KIRI & KANAN (Universal untuk Seluruh Rapot Santri)
-  const logoRadius = 4.8;
-  const logoBoxSize = 10;
+  const logoBoxSize = 14; // Diperbesar dari 10mm menjadi 14mm agar terlihat proporsional dan jelas
+  const logoRadius = 7;
+  const logoInsetX = 14; // Digeser ke tengah sebesar 14mm dari batas margin tepi
 
   // Dapatkan logo terbaru dari settings atau persistent storage agar berlaku untuk semua murid
   let effectiveSchoolLogo = settings.schoolLogo;
@@ -131,20 +132,20 @@ export function generateRapotPDF(
     }
   };
 
-  // Logo Sekolah (Kiri)
-  renderLogoSafely(doc, effectiveSchoolLogo, leftMargin, currentY, logoBoxSize, () => {
-    drawAlAzharLogo(doc, leftMargin + logoRadius + 1, currentY + logoRadius, logoRadius);
+  // Logo Sekolah (Kiri - diperbesar & digeser ke tengah)
+  renderLogoSafely(doc, effectiveSchoolLogo, leftMargin + logoInsetX, currentY, logoBoxSize, () => {
+    drawAlAzharLogo(doc, leftMargin + logoInsetX + logoRadius, currentY + logoRadius, logoRadius);
   });
 
-  // Logo Yayasan (Kanan)
+  // Logo Yayasan (Kanan - diperbesar & digeser ke tengah)
   renderLogoSafely(
     doc,
     effectiveFoundationLogo,
-    pageWidth - rightMargin - logoBoxSize - 9,
+    pageWidth - rightMargin - logoBoxSize - logoInsetX,
     currentY,
     logoBoxSize,
     () => {
-      drawYPIALogo(doc, pageWidth - rightMargin - logoRadius - 9, currentY + logoRadius, logoRadius);
+      drawYPIALogo(doc, pageWidth - rightMargin - logoInsetX - logoRadius, currentY + logoRadius, logoRadius);
     }
   );
 
@@ -152,23 +153,23 @@ export function generateRapotPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(20, 20, 20);
-  doc.text(settings.pageNumber || '11', pageWidth - rightMargin - 1, currentY + 3.2, { align: 'right' });
+  doc.text(settings.pageNumber || '11', pageWidth - rightMargin - 1, currentY + 2.5, { align: 'right' });
 
   // Teks Kop Tengah
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(9.5);
   doc.setTextColor(15, 15, 15);
-  doc.text('LAPORAN HASIL BELAJAR TAHFIZ DAN TAHSIN', pageWidth / 2, currentY + 2.2, { align: 'center' });
+  doc.text('LAPORAN HASIL BELAJAR TAHFIZ DAN TAHSIN', pageWidth / 2, currentY + 3.5, { align: 'center' });
 
-  currentY += 4;
-  doc.setFontSize(10);
-  doc.text(settings.schoolName || 'SMP ISLAM AL AZHAR 9 BEKASI', pageWidth / 2, currentY + 2.2, { align: 'center' });
+  currentY += 4.5;
+  doc.setFontSize(10.5);
+  doc.text(settings.schoolName || 'SMP ISLAM AL AZHAR 9 BEKASI', pageWidth / 2, currentY + 3.5, { align: 'center' });
 
-  currentY += 4;
-  doc.setFontSize(8.5);
-  doc.text(`TAHUN PELAJARAN ${settings.academicYear || '2025/2026'}`, pageWidth / 2, currentY + 2.2, { align: 'center' });
+  currentY += 4.5;
+  doc.setFontSize(8.8);
+  doc.text(`TAHUN PELAJARAN ${settings.academicYear || '2025/2026'}`, pageWidth / 2, currentY + 3.5, { align: 'center' });
 
-  currentY += 6.5;
+  currentY += 7.5;
 
   // 2. IDENTITAS SISWA (2 Kolom Bersih, Tanpa Kotak Tebal)
   const colLeftLabelX = leftMargin;

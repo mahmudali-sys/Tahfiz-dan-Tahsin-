@@ -275,63 +275,66 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
             className="w-full max-w-[760px] bg-white p-5 sm:p-6 shadow-xl text-black font-sans leading-tight print:p-0 print:shadow-none print:max-w-none"
           >
             {/* TOP HEADER: LOGOS + TITLE */}
-            <div className="relative flex items-center justify-between pb-1.5 mb-2.5">
-              {/* Logo Kiri: Sekolah (Dapat Diubah) */}
-              <div
-                onClick={() => setIsLogoModalOpen(true)}
-                className="w-11 h-11 flex items-center justify-center shrink-0 cursor-pointer group relative"
-                title="Klik untuk mengubah Logo Sekolah pada rapot"
-              >
-                {settings.schoolLogo ? (
-                  <img
-                    src={settings.schoolLogo}
-                    alt="Logo Sekolah"
-                    className="w-10 h-10 object-contain rounded-full border border-slate-300 shadow-xs group-hover:ring-2 group-hover:ring-amber-500 transition-all"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-[#006699] flex items-center justify-center border border-white shadow-xs p-1 group-hover:ring-2 group-hover:ring-amber-500 transition-all">
-                    <div className="w-full h-full rounded-full border border-white flex flex-col items-center justify-center text-white">
-                      <span className="text-[6.5px] font-bold uppercase tracking-tighter">AL-AZHAR</span>
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-0.5"></div>
-                    </div>
-                  </div>
-                )}
+            <div className="relative pb-1.5 mb-2.5">
+              {/* Nomor Halaman di pojok kanan atas */}
+              <div className="absolute top-0 right-0 text-[10px] font-bold text-black pointer-events-none">
+                {settings.pageNumber || '11'}
               </div>
 
-              {/* Teks Judul Tengah */}
-              <div className="text-center flex-1 px-2">
-                <h1 className="text-[12px] sm:text-[13px] font-bold tracking-tight text-black uppercase">
-                  LAPORAN HASIL BELAJAR TAHFIZ DAN TAHSIN
-                </h1>
-                <h2 className="text-[13px] sm:text-[14px] font-bold text-black uppercase tracking-tight mt-0.5">
-                  {settings.schoolName || 'SMP ISLAM AL AZHAR 9 BEKASI'}
-                </h2>
-                <h3 className="text-[11px] sm:text-[12px] font-bold text-black uppercase mt-0.5">
-                  TAHUN PELAJARAN {settings.academicYear || '2025/2026'}
-                </h3>
-              </div>
-
-              {/* Logo Kanan: Yayasan (Dapat Diubah) & Nomor Halaman */}
-              <div className="flex flex-col items-end shrink-0">
-                <span className="text-[10px] font-bold text-black mb-0.5">
-                  {settings.pageNumber || '11'}
-                </span>
+              {/* Baris Logo Kiri, Judul Tengah, dan Logo Kanan (Agak di tengah & Diperbesar) */}
+              <div className="flex items-center justify-between px-6 sm:px-12 md:px-16 gap-3">
+                {/* Logo Kiri: Sekolah (Dapat Diubah) */}
                 <div
                   onClick={() => setIsLogoModalOpen(true)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer group relative"
+                  className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0 cursor-pointer group relative"
+                  title="Klik untuk mengubah Logo Sekolah pada rapot"
+                >
+                  {settings.schoolLogo ? (
+                    <img
+                      src={settings.schoolLogo}
+                      alt="Logo Sekolah"
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-full border border-slate-300 shadow-sm bg-white p-0.5 group-hover:ring-2 group-hover:ring-amber-500 transition-all"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#006699] flex items-center justify-center border-2 border-white shadow-sm p-1.5 group-hover:ring-2 group-hover:ring-amber-500 transition-all">
+                      <div className="w-full h-full rounded-full border border-white flex flex-col items-center justify-center text-white">
+                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-tighter">AL-AZHAR</span>
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400 mt-1"></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Teks Judul Tengah */}
+                <div className="text-center flex-1 px-1">
+                  <h1 className="text-[12.5px] sm:text-[14px] font-bold tracking-tight text-black uppercase leading-snug">
+                    LAPORAN HASIL BELAJAR TAHFIZ DAN TAHSIN
+                  </h1>
+                  <h2 className="text-[13.5px] sm:text-[15px] font-bold text-black uppercase tracking-tight mt-0.5 leading-snug">
+                    {settings.schoolName || 'SMP ISLAM AL AZHAR 9 BEKASI'}
+                  </h2>
+                  <h3 className="text-[11.5px] sm:text-[12.5px] font-bold text-black uppercase mt-0.5 leading-snug">
+                    TAHUN PELAJARAN {settings.academicYear || '2025/2026'}
+                  </h3>
+                </div>
+
+                {/* Logo Kanan: Yayasan (Dapat Diubah) */}
+                <div
+                  onClick={() => setIsLogoModalOpen(true)}
+                  className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center shrink-0 cursor-pointer group relative"
                   title="Klik untuk mengubah Logo Yayasan pada rapot"
                 >
                   {settings.foundationLogo ? (
                     <img
                       src={settings.foundationLogo}
                       alt="Logo Yayasan"
-                      className="w-10 h-10 object-contain rounded-full border border-slate-300 shadow-xs group-hover:ring-2 group-hover:ring-amber-500 transition-all"
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-full border border-slate-300 shadow-sm bg-white p-0.5 group-hover:ring-2 group-hover:ring-amber-500 transition-all"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#008040] flex items-center justify-center border border-white shadow-xs p-1 group-hover:ring-2 group-hover:ring-amber-500 transition-all">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#008040] flex items-center justify-center border-2 border-white shadow-sm p-1.5 group-hover:ring-2 group-hover:ring-amber-500 transition-all">
                       <div className="w-full h-full rounded-full border border-white flex flex-col items-center justify-center text-white">
-                        <span className="text-[6px] font-bold uppercase tracking-tighter">YPIA</span>
-                        <div className="w-2 h-1.5 rounded-t-full bg-white mt-0.5"></div>
+                        <span className="text-[9px] sm:text-[9.5px] font-bold uppercase tracking-tighter">YPIA</span>
+                        <div className="w-3 h-2.5 rounded-t-full bg-white mt-1"></div>
                       </div>
                     </div>
                   )}
