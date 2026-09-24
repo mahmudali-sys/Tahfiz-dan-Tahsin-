@@ -24,12 +24,14 @@ interface StudentDashboardProps {
   reportData: StudentReportData;
   settings: SchoolSettings;
   teachers: Teacher[];
+  onUpdateSettings?: (newSettings: SchoolSettings) => void;
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   reportData,
   settings,
   teachers,
+  onUpdateSettings,
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedJuzTab, setSelectedJuzTab] = useState<number>(30);
@@ -533,6 +535,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         reportData={reportData}
         settings={settings}
         teacherName={teacherName}
+        onUpdateSettings={onUpdateSettings}
       />
     </div>
   );

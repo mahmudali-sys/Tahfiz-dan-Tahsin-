@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   GraduationCap, 
@@ -123,6 +123,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState<SchoolSettings>(settings);
+
+  useEffect(() => {
+    setSettingsForm(settings);
+  }, [settings]);
 
   const handleLogoUploadInAdmin = (e: React.ChangeEvent<HTMLInputElement>, target: 'school' | 'foundation') => {
     const file = e.target.files?.[0];

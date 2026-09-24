@@ -73,6 +73,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
     }
     try {
       localStorage.setItem('SMPIA9_SCHOOL_SETTINGS', JSON.stringify(updated));
+      window.dispatchEvent(new Event('storage'));
     } catch {}
     setLogoSaveSuccess(true);
     setTimeout(() => {
@@ -616,9 +617,9 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                   <ImageIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">Kustomisasi Logo Rapot</h3>
+                  <h3 className="font-bold text-slate-900 text-sm">Kustomisasi Logo Rapot (Seluruh Murid)</h3>
                   <p className="text-xs text-slate-500">
-                    Ubah logo sekolah (kiri) dan yayasan (kanan) pada rapot
+                    Perubahan logo sekolah (kiri) dan logo yayasan (kanan) otomatis tersimpan dan diterapkan pada rapot semua murid (168 santri).
                   </p>
                 </div>
               </div>
@@ -769,10 +770,10 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                   {logoSaveSuccess ? (
                     <>
                       <Check className="w-4 h-4 text-emerald-300" />
-                      <span>Berhasil Disimpan!</span>
+                      <span>Berhasil Disimpan untuk Semua Santri!</span>
                     </>
                   ) : (
-                    <span>Simpan & Terapkan di Rapot</span>
+                    <span>Simpan untuk Semua Rapot Murid</span>
                   )}
                 </button>
               </div>

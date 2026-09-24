@@ -49,6 +49,7 @@ interface PengolahanNilaiViewProps {
   onBatchUpdateReports?: (updatedReports: Record<string, StudentReportData>) => void;
   onBackToDashboard?: () => void;
   initialClass?: string;
+  onUpdateSettings?: (newSettings: SchoolSettings) => void;
 }
 
 export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
@@ -61,6 +62,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
   onBatchUpdateReports,
   onBackToDashboard,
   initialClass = '7B',
+  onUpdateSettings,
 }) => {
   // Active Sheet Tab: 'absen' | 'iqra' | 'tahfiz' | 'rapot'
   const [activeSheet, setActiveSheet] = useState<'absen' | 'iqra' | 'tahfiz' | 'rapot'>('absen');
@@ -1618,6 +1620,7 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
           reportData={previewStudentReport}
           settings={settings}
           teacherName={currentTeacher?.name || teachers[0]?.name || 'Ustadz Pembimbing'}
+          onUpdateSettings={onUpdateSettings}
         />
       )}
 

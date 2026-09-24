@@ -696,6 +696,7 @@ export default function App() {
             onBatchUpdateReports={handleBatchUpdateReports}
             onBackToDashboard={() => setActiveView('dashboard')}
             initialClass={processingClass}
+            onUpdateSettings={handleUpdateSettings}
           />
         ) : (
           <>
@@ -745,6 +746,7 @@ export default function App() {
                 reportData={activeReport}
                 settings={settings}
                 teachers={teachers}
+                onUpdateSettings={handleUpdateSettings}
               />
             )}
           </>

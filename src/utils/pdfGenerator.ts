@@ -84,31 +84,69 @@ export function generateRapotPDF(
 
   let currentY = 8;
 
-  // 1. HEADER DENGAN LOGO KIRI & KANAN
+  // 1. HEADER DENGAN LOGO KIRI & KANAN (Universal untuk Seluruh Rapot Santri)
   const logoRadius = 4.8;
   const logoBoxSize = 10;
 
-  // Logo Sekolah (Kiri)
-  if (settings.schoolLogo) {
+  // Dapatkan logo terbaru dari settings atau persistent storage agar berlaku untuk semua murid
+  let effectiveSchoolLogo = settings.schoolLogo;
+  let effectiveFoundationLogo = settings.foundationLogo;
+  if (!effectiveSchoolLogo || !effectiveFoundationLogo) {
     try {
-      doc.addImage(settings.schoolLogo, 'PNG', leftMargin, currentY, logoBoxSize, logoBoxSize);
-    } catch {
-      drawAlAzharLogo(doc, leftMargin + logoRadius + 1, currentY + logoRadius, logoRadius);
-    }
-  } else {
-    drawAlAzharLogo(doc, leftMargin + logoRadius + 1, currentY + logoRadius, logoRadius);
+      const stored = localStorage.getItem('SMPIA9_SCHOOL_SETTINGS');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (!effectiveSchoolLogo && parsed.schoolLogo) effectiveSchoolLogo = parsed.schoolLogo;
+        if (!effectiveFoundationLogo && parsed.foundationLogo) effectiveFoundationLogo = parsed.foundationLogo;
+      }
+    } catch {}
   }
 
-  // Logo Yayasan (Kanan)
-  if (settings.foundationLogo) {
+  const renderLogoSafely = (
+    docInstance: jsPDF,
+    logoSrc: string | undefined,
+    x: number,
+    y: number,
+    size: number,
+    fallbackDraw: () => void
+  ) => {
+    if (!logoSrc) {
+      fallbackDraw();
+      return;
+    }
     try {
-      doc.addImage(settings.foundationLogo, 'PNG', pageWidth - rightMargin - logoBoxSize - 9, currentY, logoBoxSize, logoBoxSize);
+      let format = 'PNG';
+      if (logoSrc.includes('image/jpeg') || logoSrc.includes('image/jpg') || /\.jpe?g($|\?)/i.test(logoSrc)) {
+        format = 'JPEG';
+      } else if (logoSrc.includes('image/webp') || /\.webp($|\?)/i.test(logoSrc)) {
+        format = 'WEBP';
+      }
+      docInstance.addImage(logoSrc, format, x, y, size, size);
     } catch {
+      try {
+        docInstance.addImage(logoSrc, undefined as any, x, y, size, size);
+      } catch {
+        fallbackDraw();
+      }
+    }
+  };
+
+  // Logo Sekolah (Kiri)
+  renderLogoSafely(doc, effectiveSchoolLogo, leftMargin, currentY, logoBoxSize, () => {
+    drawAlAzharLogo(doc, leftMargin + logoRadius + 1, currentY + logoRadius, logoRadius);
+  });
+
+  // Logo Yayasan (Kanan)
+  renderLogoSafely(
+    doc,
+    effectiveFoundationLogo,
+    pageWidth - rightMargin - logoBoxSize - 9,
+    currentY,
+    logoBoxSize,
+    () => {
       drawYPIALogo(doc, pageWidth - rightMargin - logoRadius - 9, currentY + logoRadius, logoRadius);
     }
-  } else {
-    drawYPIALogo(doc, pageWidth - rightMargin - logoRadius - 9, currentY + logoRadius, logoRadius);
-  }
+  );
 
   // Nomor Halaman / Seri di pojok kanan atas
   doc.setFont('helvetica', 'bold');
