@@ -57,15 +57,21 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
   reports,
   currentTeacher,
   teachers,
-  selectedClass = '7B',
+  teacherName,
+  selectedClass = 'all',
   initialStudentId,
   initialAttendanceDate,
   onSaveAttendanceAndSetoran,
 }) => {
-  if (!isOpen) return null;
-
   // Filter students based on class selection
-  const [classFilter, setClassFilter] = useState<string>(selectedClass);
+  const [classFilter, setClassFilter] = useState<string>(() => {
+    if (initialStudentId) {
+      const s = students.find((std) => std.id === initialStudentId);
+      if (s) return s.className;
+    }
+    return selectedClass || 'all';
+  });
+
   const classStudents = useMemo(() => {
     if (classFilter === 'all') return students;
     return students.filter((s) => s.className === classFilter);
@@ -76,12 +82,29 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
     if (initialStudentId && students.some((s) => s.id === initialStudentId)) {
       return initialStudentId;
     }
-    return classStudents[0]?.id || students[0]?.id || '';
+    if (classFilter !== 'all') {
+      const matched = students.find((s) => s.className === classFilter);
+      if (matched) return matched.id;
+    }
+    return students[0]?.id || '';
   });
 
   const selectedStudent = useMemo(() => {
-    return students.find((s) => s.id === selectedStudentId) || students[0];
-  }, [students, selectedStudentId]);
+    return (
+      students.find((s) => s.id === selectedStudentId) ||
+      classStudents[0] ||
+      students[0] ||
+      ({
+        id: 'fallback-std',
+        name: 'Santri',
+        nis: '-',
+        nisn: '-',
+        className: '7A',
+        targetJuz: 'Juz 30 (Tuntas Mutqin)',
+        targetSurahCount: 37,
+      } as Student)
+    );
+  }, [students, classStudents, selectedStudentId]);
 
   const currentReport = selectedStudent ? reports[selectedStudent.id] : null;
 
@@ -100,9 +123,13 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
   const [ayatTo, setAyatTo] = useState<number>(40);
   const [gradeScore, setGradeScore] = useState<number>(90);
   const [isMutqin, setIsMutqin] = useState<boolean>(true);
-  const [examinerName, setExaminerName] = useState<string>(() => {
-    return currentTeacher?.name || teachers[0]?.name || 'Ustadz Pembimbing';
-  });
+
+  const effectiveTeacherName =
+    teacherName ||
+    currentTeacher?.name ||
+    (teachers && teachers.length > 0 ? teachers[0].name : '') ||
+    'Ust. Mahmud Ali Yafi, S.S, M.Pd.I.';
+  const [examinerName, setExaminerName] = useState<string>(effectiveTeacherName);
   const [hafalanNotes, setHafalanNotes] = useState<string>('Lancar, makhraj dan tajwid baik.');
 
   // When selected student changes, update defaults
@@ -110,16 +137,24 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
     if (selectedStudent && currentReport) {
       setAttendanceNote(currentReport.adab?.generalNotes || '');
     }
-  }, [selectedStudentId]);
+  }, [selectedStudentId, currentReport]);
 
-  // Sync when initialStudentId or students list changes
+  // Sync when initialStudentId or modal opening changes
   useEffect(() => {
-    if (initialStudentId && students.some((s) => s.id === initialStudentId)) {
-      setSelectedStudentId(initialStudentId);
+    if (initialStudentId) {
       const s = students.find((std) => std.id === initialStudentId);
-      if (s) setClassFilter(s.className);
+      if (s) {
+        setClassFilter(s.className);
+        setSelectedStudentId(s.id);
+      }
+    } else if (isOpen) {
+      setClassFilter(selectedClass || 'all');
+      if (selectedClass && selectedClass !== 'all') {
+        const first = students.find((s) => s.className === selectedClass);
+        if (first) setSelectedStudentId(first.id);
+      }
     }
-  }, [initialStudentId, students]);
+  }, [initialStudentId, selectedClass, isOpen, students]);
 
   // Sync when initialAttendanceDate changes or modal opens
   useEffect(() => {
@@ -200,6 +235,8 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[94vh]">
@@ -275,6 +312,11 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
                 onChange={(e) => setSelectedStudentId(e.target.value)}
                 className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-600 cursor-pointer"
               >
+                {!classStudents.some((s) => s.id === selectedStudentId) && selectedStudent && (
+                  <option value={selectedStudent.id}>
+                    {selectedStudent.name} — Kelas {selectedStudent.className} (NISN: {selectedStudent.nisn}) [Target: {selectedStudent.targetJuz}]
+                  </option>
+                )}
                 {classStudents.map((std, idx) => (
                   <option key={std.id} value={std.id}>
                     {idx + 1}. {std.name} — Kelas {std.className} (NISN: {std.nisn}) [Target: {std.targetJuz}]

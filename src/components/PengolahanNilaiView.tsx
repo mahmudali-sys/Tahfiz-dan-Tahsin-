@@ -1652,20 +1652,23 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
       )}
 
       {/* Form Tanggal Kehadiran & Setoran Santri Modal */}
-      <AttendanceAndHafalanModal
-        isOpen={isAttendanceHafalanModalOpen}
-        onClose={() => {
-          setIsAttendanceHafalanModalOpen(false);
-          setModalInitialStudentId(undefined);
-        }}
-        students={filteredStudents.length > 0 ? filteredStudents : students}
-        reports={reports}
-        teacherName={currentTeacher?.name || assignedTeacher.name}
-        selectedClass={selectedClass === 'all' ? '7B' : selectedClass}
-        initialStudentId={modalInitialStudentId}
-        initialAttendanceDate={attendanceDate}
-        onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
-      />
+      {isAttendanceHafalanModalOpen && (
+        <AttendanceAndHafalanModal
+          isOpen={isAttendanceHafalanModalOpen}
+          onClose={() => {
+            setIsAttendanceHafalanModalOpen(false);
+            setModalInitialStudentId(undefined);
+          }}
+          students={students}
+          reports={reports}
+          teacherName={currentTeacher?.name || assignedTeacher.name}
+          teachers={teachers}
+          selectedClass={selectedClass}
+          initialStudentId={modalInitialStudentId}
+          initialAttendanceDate={attendanceDate}
+          onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
+        />
+      )}
 
       {/* Official Printable Lembar Absen & Penilaian Modal */}
       {isPrintModalOpen && (

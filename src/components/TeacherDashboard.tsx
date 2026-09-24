@@ -603,20 +603,24 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       )}
 
       {/* Attendance & Hafalan Date Modal */}
-      <AttendanceAndHafalanModal
-        isOpen={isAttendanceModalOpen}
-        onClose={() => {
-          setIsAttendanceModalOpen(false);
-          setModalInitialStudentId(undefined);
-        }}
-        students={filteredStudents.length > 0 ? filteredStudents : students}
-        reports={reports}
-        teacherName={currentTeacher.name}
-        selectedClass={selectedClass !== 'all' ? selectedClass : '7B'}
-        initialStudentId={modalInitialStudentId}
-        initialAttendanceDate={attendanceDate}
-        onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
-      />
+      {isAttendanceModalOpen && (
+        <AttendanceAndHafalanModal
+          isOpen={isAttendanceModalOpen}
+          onClose={() => {
+            setIsAttendanceModalOpen(false);
+            setModalInitialStudentId(undefined);
+          }}
+          students={students}
+          reports={reports}
+          teacherName={currentTeacher.name}
+          currentTeacher={currentTeacher}
+          teachers={teachers}
+          selectedClass={selectedClass}
+          initialStudentId={modalInitialStudentId}
+          initialAttendanceDate={attendanceDate}
+          onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
+        />
+      )}
     </div>
   );
 };
