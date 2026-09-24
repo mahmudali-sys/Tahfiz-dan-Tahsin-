@@ -37,6 +37,7 @@ interface TeacherDashboardProps {
   onImportStudents?: (students: Student[], mode: 'append' | 'replace') => void;
   onOpenProcessingMenu?: (className?: string) => void;
   teachers?: Teacher[];
+  onUpdateSettings?: (newSettings: SchoolSettings) => void;
 }
 
 export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
@@ -48,6 +49,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   onImportStudents,
   onOpenProcessingMenu,
   teachers = [],
+  onUpdateSettings,
 }) => {
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -557,6 +559,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           reportData={selectedStudentForPreview}
           settings={settings}
           teacherName={currentTeacher.name}
+          onUpdateSettings={onUpdateSettings}
         />
       )}
 

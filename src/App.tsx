@@ -732,6 +732,7 @@ export default function App() {
                 onUpdateReport={handleUpdateReport}
                 onImportStudents={handleImportStudents}
                 teachers={teachers}
+                onUpdateSettings={handleUpdateSettings}
                 onOpenProcessingMenu={(cls) => {
                   if (cls) setProcessingClass(cls);
                   setActiveView('pengolahan_nilai');

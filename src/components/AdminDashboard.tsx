@@ -18,7 +18,9 @@ import {
   CheckSquare,
   Square,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon,
+  Upload
 } from 'lucide-react';
 import { Student, Teacher, StudentReportData, SchoolSettings } from '../types';
 import { getPredicate, getPredicateColor } from '../data/quranData';
@@ -121,6 +123,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState<SchoolSettings>(settings);
+
+  const handleLogoUploadInAdmin = (e: React.ChangeEvent<HTMLInputElement>, target: 'school' | 'foundation') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (target === 'school') {
+        setSettingsForm((prev) => ({ ...prev, schoolLogo: dataUrl }));
+      } else {
+        setSettingsForm((prev) => ({ ...prev, foundationLogo: dataUrl }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Filter students
   const filteredStudents = students.filter((s) => {
@@ -968,6 +985,125 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
 
+            {/* Kustomisasi Logo Sekolah & Yayasan pada Rapot */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <h4 className="font-bold text-sm text-slate-900 mb-1 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-emerald-800" />
+                Kustomisasi Logo Sekolah & Yayasan pada Rapot
+              </h4>
+              <p className="text-xs text-slate-500 mb-4">
+                Ubah logo sekolah (sisi kiri) dan logo yayasan (sisi kanan) yang tampil pada cetakan rapot dan unduhan PDF resmi.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Logo Sekolah (Kiri) */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-xs text-slate-800">Logo Sekolah (Kop Kiri)</span>
+                    {settingsForm.schoolLogo && (
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, schoolLogo: undefined })}
+                        className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                      >
+                        Reset ke Al-Azhar
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center p-1 shrink-0 bg-slate-50">
+                      {settingsForm.schoolLogo ? (
+                        <img
+                          src={settingsForm.schoolLogo}
+                          alt="Logo Sekolah"
+                          className="w-full h-full object-contain rounded-full"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#006699] flex flex-col items-center justify-center text-white text-[6px] font-bold">
+                          <span>AL-AZHAR</span>
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-0.5"></div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-semibold text-xs cursor-pointer shadow-xs">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Pilih File Logo (PNG/JPG)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleLogoUploadInAdmin(e, 'school')}
+                          className="hidden"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Atau masukkan link/URL gambar logo..."
+                        value={settingsForm.schoolLogo || ''}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, schoolLogo: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo Yayasan (Kanan) */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-xs text-slate-800">Logo Yayasan (Kop Kanan)</span>
+                    {settingsForm.foundationLogo && (
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, foundationLogo: undefined })}
+                        className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                      >
+                        Reset ke YPIA
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center p-1 shrink-0 bg-slate-50">
+                      {settingsForm.foundationLogo ? (
+                        <img
+                          src={settingsForm.foundationLogo}
+                          alt="Logo Yayasan"
+                          className="w-full h-full object-contain rounded-full"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#008040] flex flex-col items-center justify-center text-white text-[6px] font-bold">
+                          <span>YPIA</span>
+                          <div className="w-2 h-1.5 rounded-t-full bg-white mt-0.5"></div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg font-semibold text-xs cursor-pointer shadow-xs">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Pilih File Logo (PNG/JPG)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleLogoUploadInAdmin(e, 'foundation')}
+                          className="hidden"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Atau masukkan link/URL gambar logo..."
+                        value={settingsForm.foundationLogo || ''}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, foundationLogo: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
               <h4 className="font-bold text-sm text-slate-900 mb-3">Tanda Tangan Kepala Sekolah</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1091,6 +1227,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           reportData={previewReport}
           settings={settings}
           teacherName={teachers.find((t) => t.id === previewReport.student.teacherId)?.name}
+          onUpdateSettings={onUpdateSettings}
         />
       )}
 

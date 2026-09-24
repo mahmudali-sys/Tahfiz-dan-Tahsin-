@@ -16,6 +16,8 @@ export interface SchoolSettings {
   coordinatorName?: string;
   coordinatorTitle?: string;
   pageNumber?: string;
+  schoolLogo?: string; // Data URL (Base64) or Image URL for Left Logo (Sekolah)
+  foundationLogo?: string; // Data URL (Base64) or Image URL for Right Logo (Yayasan)
 }
 
 export interface Student {

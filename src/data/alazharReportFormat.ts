@@ -308,3 +308,94 @@ export const RENTANG_NILAI_STANDARDS = [
 export function getTahsinCurriculum(startJilid: number = 1): TahsinJilidGroup[] {
   return ALAZHAR_TAHSIN_CURRICULUM.filter((g) => g.jilid >= startJilid);
 }
+
+/**
+ * Generate an automated pedagogical note for a Tahsin jilid
+ * based on the teacher's score and curriculum competencies.
+ */
+export function getAutomatedTahsinJilidNote(
+  jilid: number,
+  score: number,
+  studentName?: string,
+  customNote?: string
+): string {
+  // If teacher already wrote a custom meaningful note (not empty and not default placeholder)
+  if (customNote && customNote.trim().length > 0 && !customNote.startsWith('Target kurikulum')) {
+    return customNote;
+  }
+
+  // Auto-generate note tailored to jilid and score tier
+  if (score >= 91) {
+    // Mumtaz / Nilai A
+    switch (jilid) {
+      case 1:
+        return 'Sangat fasih melafalkan huruf hijaiyyah tunggal fathah dengan makhraj sempurna dan disiplin satu ketukan.';
+      case 2:
+        return 'Sangat baik dan tepat membedakan mad asli 2 harakat dengan huruf pendek pada rangkaian huruf bersambung.';
+      case 3:
+        return 'Sangat mutqin melafalkan harakat kasrah dan dhammah serta mad asli ya/wawu sukun dan mad silah qashirah.';
+      case 4:
+        return 'Sangat menguasai bacaan tanwin, huruf sukun, sifat qalqalah (sughra/kubra), dan lin dengan mantap dan tartil.';
+      case 5:
+        return 'Sangat fasih menerapkan hukum Alif Lam Syamsiyyah/Qamariyyah, ghunnah, mad wajib-jaiz, dan lafdzul jalalah.';
+      case 6:
+        return 'Sangat mutqin dalam hukum idgham, iqlab, ikhfa haqiqi, waqaf bertasydid, huruf muqatha\'ah, serta siap tadarus Al-Qur\'an 30 Juz.';
+      default:
+        return 'Sangat mutqin dan fasih dalam tilawah serta kaidah tajwid praktis.';
+    }
+  } else if (score >= 81) {
+    // Jayyid Jiddan / Nilai B
+    switch (jilid) {
+      case 1:
+        return 'Lancar dan tertib membaca huruf hijaiyyah fathah serta membedakan makhraj huruf yang berdekatan dengan baik.';
+      case 2:
+        return 'Lancar membaca rangkaian huruf bersambung dan tertib membedakan mad asli (fathah ber-alif) 2 harakat.';
+      case 3:
+        return 'Lancar dan tepat melafalkan harakat kasrah, dhammah, serta kaidah mad asli dengan artikulasi jelas.';
+      case 4:
+        return 'Baik dan jelas dalam membaca tanwin, pantulan huruf qalqalah, dan huruf sukun secara konsisten.';
+      case 5:
+        return 'Lancar menerapkan dengung ghunnah, mad panjang 4-5 harakat, serta waqaf ta marbuthah secara teratur.';
+      case 6:
+        return 'Lancar dan fasih membedakan dengung ikhfa, idgham, dan tanda waqaf; menunjukkan kemandirian tilawah Al-Qur\'an.';
+      default:
+        return 'Lancar dan baik dalam menguasai kaidah tilawah dan tajwid.';
+    }
+  } else if (score >= 71) {
+    // Jayyid / Nilai C
+    switch (jilid) {
+      case 1:
+        return 'Cukup menguasai huruf hijaiyyah fathah, perlu membiasakan ketukan pendek agar tidak terbawa memanjang.';
+      case 2:
+        return 'Cukup baik membaca huruf sambung, perlu melatih kestabilan panjang 2 harakat mad asli secara konsisten.';
+      case 3:
+        return 'Cukup memahami harakat kasrah-dhammah, perlu penguatan pada ketukan mad silah qashirah.';
+      case 4:
+        return 'Cukup baik dalam bacaan tanwin dan sukun, perlu membiasakan pantulan qalqalah lebih tegas.';
+      case 5:
+        return 'Cukup menguasai tajwid jilid 5, perlu melatih kestabilan dengung ghunnah dan panjang mad wajib.';
+      case 6:
+        return 'Cukup baik membaca hukum tajwid nun/mim mati, perlu memperhatikan kesempurnaan dengung ikhfa dan idgham.';
+      default:
+        return 'Cukup menguasai materi jilid, perlu penguatan latihan mandiri.';
+    }
+  } else {
+    // Maqbul / Nilai D/E (< 71)
+    switch (jilid) {
+      case 1:
+        return 'Perlu bimbingan dan muroja\'ah rutin dalam pengenalan makhraj huruf hijaiyyah tunggal berharakat fathah.';
+      case 2:
+        return 'Perlu bimbingan membaca rangkaian huruf bersambung dan pembedaan ketukan panjang-pendek mad asli.';
+      case 3:
+        return 'Perlu latihan intensif melafalkan harakat kasrah dan dhammah agar makhraj vokal lebih murni dan jelas.';
+      case 4:
+        return 'Perlu pengulangan materi sukun dan qalqalah dengan pendampingan guru agar pantulan lebih pas.';
+      case 5:
+        return 'Perlu pendampingan khusus pada pengenalan Alif Lam dan panjang mad wajib serta ghunnah.';
+      case 6:
+        return 'Perlu muroja\'ah mendalam pada hukum tajwid idgham dan ikhfa sebelum melangkah ke tadarus mushaf.';
+      default:
+        return 'Perlu bimbingan dan muroja\'ah lebih intensif pada materi jilid ini.';
+    }
+  }
+}

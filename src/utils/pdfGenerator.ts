@@ -9,6 +9,7 @@ import {
   TahfizColumnCell,
   getLetterScore,
   RENTANG_NILAI_STANDARDS,
+  getAutomatedTahsinJilidNote,
 } from '../data/alazharReportFormat';
 
 function drawAlAzharLogo(doc: jsPDF, x: number, y: number, radius: number) {
@@ -85,8 +86,29 @@ export function generateRapotPDF(
 
   // 1. HEADER DENGAN LOGO KIRI & KANAN
   const logoRadius = 4.8;
-  drawAlAzharLogo(doc, leftMargin + logoRadius + 1, currentY + logoRadius, logoRadius);
-  drawYPIALogo(doc, pageWidth - rightMargin - logoRadius - 9, currentY + logoRadius, logoRadius);
+  const logoBoxSize = 10;
+
+  // Logo Sekolah (Kiri)
+  if (settings.schoolLogo) {
+    try {
+      doc.addImage(settings.schoolLogo, 'PNG', leftMargin, currentY, logoBoxSize, logoBoxSize);
+    } catch {
+      drawAlAzharLogo(doc, leftMargin + logoRadius + 1, currentY + logoRadius, logoRadius);
+    }
+  } else {
+    drawAlAzharLogo(doc, leftMargin + logoRadius + 1, currentY + logoRadius, logoRadius);
+  }
+
+  // Logo Yayasan (Kanan)
+  if (settings.foundationLogo) {
+    try {
+      doc.addImage(settings.foundationLogo, 'PNG', pageWidth - rightMargin - logoBoxSize - 9, currentY, logoBoxSize, logoBoxSize);
+    } catch {
+      drawYPIALogo(doc, pageWidth - rightMargin - logoRadius - 9, currentY + logoRadius, logoRadius);
+    }
+  } else {
+    drawYPIALogo(doc, pageWidth - rightMargin - logoRadius - 9, currentY + logoRadius, logoRadius);
+  }
 
   // Nomor Halaman / Seri di pojok kanan atas
   doc.setFont('helvetica', 'bold');
@@ -165,6 +187,31 @@ export function generateRapotPDF(
   curriculum.forEach((jilidGroup) => {
     const jilidRowsCount = jilidGroup.aspects.length;
 
+    // Hitung rata-rata nilai jilid ini untuk catatan otomatis
+    let jilidScoreSum = 0;
+    jilidGroup.aspects.forEach((asp) => {
+      let sc = asp.defaultScore;
+      if (tahsin.aspects && tahsin.aspects.length > 0) {
+        const found = tahsin.aspects.find(
+          (a) => a.key === asp.id || a.name.toLowerCase().includes(asp.name.toLowerCase().slice(0, 10))
+        );
+        if (found) sc = found.score;
+        else if (tahsin.jilidHistory && tahsin.jilidHistory[jilidGroup.jilid as any]?.score) {
+          sc = tahsin.jilidHistory[jilidGroup.jilid as any].score;
+        }
+      } else if (tahsin.jilidHistory && tahsin.jilidHistory[jilidGroup.jilid as any]?.score) {
+        sc = tahsin.jilidHistory[jilidGroup.jilid as any].score;
+      }
+      jilidScoreSum += sc;
+    });
+    const jilidAvgScore = Math.round(jilidScoreSum / jilidRowsCount);
+    const jilidAutoNote = getAutomatedTahsinJilidNote(
+      jilidGroup.jilid,
+      jilidAvgScore,
+      student.name,
+      tahsin.jilidHistory?.[jilidGroup.jilid as any]?.notes
+    );
+
     jilidGroup.aspects.forEach((aspect, aIdx) => {
       const isFirstOfJilid = aIdx === 0;
 
@@ -234,7 +281,13 @@ export function generateRapotPDF(
         rowCells.push({
           content: jilidGroup.keterangan,
           rowSpan: jilidRowsCount,
-          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold' },
+          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 5 },
+        });
+        // Catatan Perkembangan Otomatis Sesuai Nilai Guru (Rowspan per jilid)
+        rowCells.push({
+          content: jilidAutoNote,
+          rowSpan: jilidRowsCount,
+          styles: { halign: 'left', valign: 'middle', fontStyle: 'italic', fontSize: 4.8 },
         });
       }
 
@@ -249,7 +302,7 @@ export function generateRapotPDF(
     tableWidth: contentWidth,
     pageBreak: 'avoid',
     styles: {
-      fontSize: 5.6,
+      fontSize: 5.4,
       cellPadding: 0.45,
       textColor: [0, 0, 0],
       lineColor: [0, 0, 0],
@@ -262,19 +315,20 @@ export function generateRapotPDF(
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
-      fontSize: 6,
+      fontSize: 5.8,
       lineColor: [0, 0, 0],
       lineWidth: 0.12,
-      cellPadding: 0.6,
+      cellPadding: 0.5,
     },
     columnStyles: {
-      0: { cellWidth: 6 },  // No
-      1: { cellWidth: 18 }, // Mata Pelajaran
-      2: { cellWidth: 8 },  // Jilid
-      3: { cellWidth: 78 }, // Materi Iqra'
-      4: { cellWidth: 11 }, // Angka
-      5: { cellWidth: 11 }, // Huruf
-      6: { cellWidth: 58 }, // Keterangan Kenaikan Jilid
+      0: { cellWidth: 5 },  // No
+      1: { cellWidth: 14 }, // Mata Pelajaran
+      2: { cellWidth: 7 },  // Jilid
+      3: { cellWidth: 62 }, // Materi Iqra'
+      4: { cellWidth: 10 }, // Angka
+      5: { cellWidth: 10 }, // Huruf
+      6: { cellWidth: 32 }, // Keterangan Kenaikan Jilid
+      7: { cellWidth: 50 }, // Catatan Perkembangan Santri Otomatis
     },
     head: [
       [
@@ -283,6 +337,7 @@ export function generateRapotPDF(
         { content: 'Jilid', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
         { content: 'Aspek Penilaian', colSpan: 3, styles: { halign: 'center' } },
         { content: 'Keterangan Kenaikan Jilid', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        { content: 'Catatan Perkembangan Santri', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
       ],
       [
         { content: "Materi Iqra'", styles: { halign: 'center' } },
