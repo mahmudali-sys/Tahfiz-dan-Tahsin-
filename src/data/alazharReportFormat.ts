@@ -413,14 +413,27 @@ export interface ExamResultRow {
 
 export function getExamResultRows(reportData: StudentReportData): ExamResultRow[] {
   if (reportData.examResults && reportData.examResults.length > 0) {
-    return reportData.examResults.map((e, idx) => ({
-      no: idx + 1,
-      subject: e.name,
-      score: e.score,
-      letterGrade: e.letterGrade || getLetterScore(e.score),
-      predicate: (e.predicate as any) || (getLetterScore(e.score) === 'A' ? 'Mumtaz' : getLetterScore(e.score) === 'B' ? 'Jayyid Jiddan' : getLetterScore(e.score) === 'C' ? 'Jayyid' : getLetterScore(e.score) === 'D' ? 'Maqbul' : 'Rasib'),
-      notes: e.notes,
-    }));
+    // Filter out item 3 (Muroja'ah) yang dilingkari merah untuk dibuang
+    const filtered = reportData.examResults
+      .filter((e) => !e.name.toLowerCase().includes('muroja') && !e.name.toLowerCase().includes('sambung ayat'))
+      .slice(0, 2);
+
+    if (filtered.length > 0) {
+      return filtered.map((e, idx) => {
+        let cleanSubject = idx === 0
+          ? "Tahfiz Al-Qur'an (Kelancaran & Ketepatan Hafalan)"
+          : "Tahsin (Makhorijul Huruf dan Tajwid)";
+
+        return {
+          no: idx + 1,
+          subject: cleanSubject,
+          score: e.score,
+          letterGrade: e.letterGrade || getLetterScore(e.score),
+          predicate: (e.predicate as any) || (getLetterScore(e.score) === 'A' ? 'Mumtaz' : getLetterScore(e.score) === 'B' ? 'Jayyid Jiddan' : getLetterScore(e.score) === 'C' ? 'Jayyid' : getLetterScore(e.score) === 'D' ? 'Maqbul' : 'Rasib'),
+          notes: e.notes,
+        };
+      });
+    }
   }
 
   const tahfizScores = reportData.tahfizRecords.map((r) => r.gradeScore).filter((s) => s > 0);
@@ -429,15 +442,12 @@ export function getExamResultRows(reportData: StudentReportData): ExamResultRow[
     : 92;
 
   const avgTahsin = reportData.tahsin.averageScore || 90;
-  const currentJilid = reportData.tahsin.jilid || 6;
-  const avgMurojaah = Math.round((avgTahfiz + avgTahsin) / 2);
-
   const studentName = reportData.student?.name || 'Santri';
 
   return [
     {
       no: 1,
-      subject: "Ujian Tahfiz Al-Qur'an (Kelancaran & Ketepatan Hafalan)",
+      subject: "Tahfiz Al-Qur'an (Kelancaran & Ketepatan Hafalan)",
       score: avgTahfiz,
       letterGrade: getLetterScore(avgTahfiz),
       predicate: avgTahfiz >= 91 ? 'Mumtaz' : avgTahfiz >= 81 ? 'Jayyid Jiddan' : avgTahfiz >= 71 ? 'Jayyid' : avgTahfiz >= 61 ? 'Maqbul' : 'Rasib',
@@ -449,27 +459,15 @@ export function getExamResultRows(reportData: StudentReportData): ExamResultRow[
     },
     {
       no: 2,
-      subject: `Ujian Tahsin Tilawah & Tajwid (Capaian Iqro' Jilid ${currentJilid})`,
+      subject: "Tahsin (Makhorijul Huruf dan Tajwid)",
       score: avgTahsin,
       letterGrade: getLetterScore(avgTahsin),
       predicate: avgTahsin >= 91 ? 'Mumtaz' : avgTahsin >= 81 ? 'Jayyid Jiddan' : avgTahsin >= 71 ? 'Jayyid' : avgTahsin >= 61 ? 'Maqbul' : 'Rasib',
       notes: avgTahsin >= 91
-        ? `Fasih dalam melafalkan makhraj huruf, hukum mad, dan dengung ghunnah materi Iqro' Jilid ${currentJilid} sesuai kaidah tajwid resmi Al-Azhar.`
+        ? `Fasih dalam melafalkan makhorijul huruf, kaidah mad, dan sifat huruf serta hukum tajwid sesuai kaidah resmi Al-Azhar.`
         : avgTahsin >= 81
-        ? `Bagus dalam penerapan kaidah tajwid praktis materi Iqro' Jilid ${currentJilid}, pertahankan kedisiplinan panjang pendek harakat.`
-        : `Cukup memahami kaidah tajwid dasar Iqro' Jilid ${currentJilid}, perlu pembiasaan tilawah harian secara terbimbing.`,
-    },
-    {
-      no: 3,
-      subject: "Ujian Muroja'ah & Ketahanan Sambung Ayat (Fashahah)",
-      score: avgMurojaah,
-      letterGrade: getLetterScore(avgMurojaah),
-      predicate: avgMurojaah >= 91 ? 'Mumtaz' : avgMurojaah >= 81 ? 'Jayyid Jiddan' : avgMurojaah >= 71 ? 'Jayyid' : avgMurojaah >= 61 ? 'Maqbul' : 'Rasib',
-      notes: avgMurojaah >= 91
-        ? `Daya ingat sambung ayat sangat baik dan tenang saat diuji. Siap melanjutkan target hafalan juz berikutnya.`
-        : avgMurojaah >= 81
-        ? `Mampu menyambung ayat dengan baik, pertahankan istiqomah dalam halaqah Al-Qur'an.`
-        : `Daya sambung ayat cukup, perlu memperbanyak simakan berpasangan sebelum ujian kenaikan tingkat.`,
+        ? `Bagus dalam penerapan makhorijul huruf dan kaidah tajwid praktis, pertahankan ketelitian bunyi huruf.`
+        : `Cukup memahami makhorijul huruf dan kaidah tajwid dasar, perlu pembiasaan tilawah harian secara terbimbing.`,
     },
   ];
 }
