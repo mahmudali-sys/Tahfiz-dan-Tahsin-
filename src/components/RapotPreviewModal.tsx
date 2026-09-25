@@ -250,10 +250,13 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
           <div className="flex items-center space-x-2">
             <FileText className="w-5 h-5 text-emerald-400" />
             <h3 className="font-bold text-sm sm:text-base">
-              Format Rapot Resmi 1 Lembar — SMP Islam Al Azhar 9
+              Format Rapot Resmi 1 Lembar (Kertas A4) — SMP Islam Al Azhar 9
             </h3>
             <span className="bg-emerald-800 text-emerald-100 text-xs px-2.5 py-0.5 rounded-full font-medium">
               {student.className}
+            </span>
+            <span className="hidden sm:inline-flex items-center gap-1 bg-slate-800 text-emerald-300 text-xs px-2.5 py-0.5 rounded-full border border-slate-700 font-semibold" title="Ukuran Kertas Standar: A4 (210 x 297 mm)">
+              <span>📄 A4 (210 × 297 mm)</span>
             </span>
           </div>
 
@@ -351,16 +354,18 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
             <button
               onClick={handleDownloadPDF}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+              title="Unduh file dokumen Rapot format PDF ukuran kertas A4 (1 Lembar Pas)"
             >
               <Download className="w-4 h-4" />
-              <span>Unduh PDF (1 Lembar)</span>
+              <span>Unduh PDF (A4 1 Lembar)</span>
             </button>
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer border border-slate-700"
+              title="Cetak langsung rapot dengan format kertas A4"
             >
               <Printer className="w-4 h-4" />
-              <span>Cetak</span>
+              <span>Cetak (Kertas A4)</span>
             </button>
             <button
               onClick={onClose}
@@ -375,7 +380,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
         <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-slate-200/80 flex justify-center">
           <div
             id="official-rapot-sheet"
-            className="w-full max-w-[760px] bg-white p-5 sm:p-6 shadow-xl text-black font-sans leading-tight print:p-0 print:shadow-none print:max-w-none"
+            className="w-full max-w-[760px] bg-white p-5 sm:p-6 shadow-xl text-black font-sans leading-tight print:p-0 print:shadow-none print:max-w-none printable-rapot"
           >
             {/* TOP HEADER: LOGOS + TITLE */}
             <div className="relative pb-1.5 mb-2.5">

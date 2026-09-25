@@ -139,9 +139,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             <button
               onClick={handleDownloadPDF}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs sm:text-sm font-bold shadow-lg transition-all cursor-pointer"
+              title="Unduh Rapot format PDF ukuran kertas standar A4"
             >
               <Download className="w-4 h-4" />
-              Unduh Rapot PDF
+              Unduh Rapot PDF (A4)
             </button>
           </div>
         </div>
@@ -645,16 +646,16 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           {/* Download Rapot Quick Card */}
           <div className="bg-emerald-900 text-white rounded-2xl p-5 text-center space-y-3 shadow-md">
-            <h4 className="font-bold text-sm">Laporan Rapot Resmi</h4>
+            <h4 className="font-bold text-sm">Laporan Rapot Resmi (Kertas A4)</h4>
             <p className="text-xs text-emerald-200">
-              Format rapot resmi SMP Islam 9 Bekasi telah siap dicetak dan diunduh dalam format PDF.
+              Format rapot resmi SMP Islam 9 Bekasi telah siap dicetak dan diunduh dalam format PDF ukuran kertas A4 (1 lembar pas).
             </p>
             <button
               onClick={handleDownloadPDF}
               className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 text-xs font-bold rounded-xl transition-colors cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              Unduh Rapot PDF Sekarang
+              Unduh Rapot PDF (A4 1 Lembar)
             </button>
           </div>
         </div>
