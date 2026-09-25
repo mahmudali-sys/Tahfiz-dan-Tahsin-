@@ -339,11 +339,6 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
           >
             {/* TOP HEADER: LOGOS + TITLE */}
             <div className="relative pb-1.5 mb-2.5">
-              {/* Nomor Halaman di pojok kanan atas */}
-              <div className="absolute top-0 right-0 text-[10px] font-bold text-black pointer-events-none">
-                {settings.pageNumber || '11'}
-              </div>
-
               {/* Baris Logo Kiri, Judul Tengah, dan Logo Kanan (Agak di tengah & Diperbesar) */}
               <div className="flex items-center justify-between px-6 sm:px-12 md:px-16 gap-3">
                 {/* Logo Kiri: Sekolah (Dapat Diubah) */}
@@ -405,26 +400,26 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               </div>
             </div>
 
-            {/* IDENTITAS SISWA: 2 KOLOM BERSIH */}
-            <div className="grid grid-cols-2 gap-x-6 text-[10px] sm:text-[11px] mb-2.5 pb-1 border-b border-transparent">
+            {/* IDENTITAS SISWA: 2 KOLOM RAPI & SEIMBANG (DITARIK KE KANAN & CENTER) */}
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] mb-2.5 pb-1 px-1 border-b border-transparent">
               <div className="space-y-0.5">
-                <div className="flex">
-                  <span className="w-32 font-semibold">Nama Peserta Didik</span>
-                  <span className="font-normal">: {student.name}</span>
+                <div className="flex items-center">
+                  <span className="w-32 sm:w-36 font-semibold text-black">Nama Peserta Didik</span>
+                  <span className="font-normal text-black">: {student.name}</span>
                 </div>
-                <div className="flex">
-                  <span className="w-32 font-semibold">Nomor Induk Siswa</span>
-                  <span className="font-normal">: {student.nis}</span>
+                <div className="flex items-center">
+                  <span className="w-32 sm:w-36 font-semibold text-black">Nomor Induk Siswa</span>
+                  <span className="font-normal text-black">: {student.nis}</span>
                 </div>
               </div>
-              <div className="space-y-0.5">
-                <div className="flex">
-                  <span className="w-20 font-semibold">Kelas</span>
-                  <span className="font-normal">: {student.className}</span>
+              <div className="space-y-0.5 min-w-[160px] sm:min-w-[190px] text-left">
+                <div className="flex items-center">
+                  <span className="w-20 sm:w-22 font-semibold text-black">Kelas</span>
+                  <span className="font-normal text-black">: {student.className}</span>
                 </div>
-                <div className="flex">
-                  <span className="w-20 font-semibold">Semester</span>
-                  <span className="font-normal">: {settings.semester || 'I (Satu)'}</span>
+                <div className="flex items-center">
+                  <span className="w-20 sm:w-22 font-semibold text-black">Semester</span>
+                  <span className="font-normal text-black">: {settings.semester || 'I (Satu)'}</span>
                 </div>
               </div>
             </div>

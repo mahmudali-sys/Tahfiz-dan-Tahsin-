@@ -150,12 +150,6 @@ export function generateRapotPDF(
     }
   );
 
-  // Nomor Halaman / Seri di pojok kanan atas
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(20, 20, 20);
-  doc.text(settings.pageNumber || '11', pageWidth - rightMargin - 1, currentY + 2.5, { align: 'right' });
-
   // Teks Kop Tengah
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
@@ -172,11 +166,11 @@ export function generateRapotPDF(
 
   currentY += 7.5;
 
-  // 2. IDENTITAS SISWA (2 Kolom Bersih, Tanpa Kotak Tebal)
+  // 2. IDENTITAS SISWA (2 Kolom Bersih, Ditarik ke Kanan & Seimbang)
   const colLeftLabelX = leftMargin;
   const colLeftValX = leftMargin + 32;
-  const colRightLabelX = leftMargin + 110;
-  const colRightValX = leftMargin + 130;
+  const colRightLabelX = leftMargin + 144;
+  const colRightValX = leftMargin + 160;
 
   doc.setFontSize(7.5);
   doc.setTextColor(20, 20, 20);

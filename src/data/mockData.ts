@@ -20,7 +20,7 @@ export const INITIAL_SCHOOL_SETTINGS: SchoolSettings = {
   reportDate: "22 Desember 2025",
   coordinatorName: "Mahmud Ali Yafi, S.S, M.Pd.I.",
   coordinatorTitle: "Koordinator Tahfiz",
-  pageNumber: "11",
+  pageNumber: "",
 };
 
 export const INITIAL_TEACHERS: Teacher[] = [
