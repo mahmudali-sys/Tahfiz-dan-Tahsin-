@@ -747,6 +747,7 @@ export default function App() {
                 settings={settings}
                 teachers={teachers}
                 onUpdateSettings={handleUpdateSettings}
+                onUpdateReport={handleUpdateReport}
               />
             )}
           </>

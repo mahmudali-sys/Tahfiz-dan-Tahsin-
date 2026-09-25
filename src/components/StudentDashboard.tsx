@@ -17,7 +17,7 @@ import {
 import { StudentReportData, SchoolSettings, Teacher } from '../types';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { IQRO_AMM_JILID_DATA, IqroJilid } from '../data/iqroData';
-import { getExamResultRows } from '../data/alazharReportFormat';
+import { getExamResultRows, getAutomatedTahsinJilidNote } from '../data/alazharReportFormat';
 import { generateRapotPDF } from '../utils/pdfGenerator';
 import { RapotPreviewModal } from './RapotPreviewModal';
 
@@ -26,6 +26,7 @@ interface StudentDashboardProps {
   settings: SchoolSettings;
   teachers: Teacher[];
   onUpdateSettings?: (newSettings: SchoolSettings) => void;
+  onUpdateReport?: (studentId: string, updatedReport: StudentReportData) => void;
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
@@ -33,6 +34,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   settings,
   teachers,
   onUpdateSettings,
+  onUpdateReport,
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedJuzTab, setSelectedJuzTab] = useState<number>(30);
@@ -518,6 +520,45 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </div>
             )}
 
+            {/* Rekap Hasil Evaluasi Tahsin per Jilid Iqro' */}
+            <div className="mb-4 space-y-2">
+              <span className="text-[11px] font-bold text-slate-800 flex items-center justify-between">
+                <span>Hasil Evaluasi per Jilid Iqro':</span>
+                <span className="text-[10px] text-emerald-700 font-semibold">Jilid 1 s.d. 6</span>
+              </span>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
+                {([1, 2, 3, 4, 5, 6] as IqroJilid[]).map((jNum) => {
+                  const hist = tahsin.jilidHistory?.[jNum];
+                  const sc = hist?.score || (jNum <= (tahsin.jilid || 6) ? 92 : 88);
+                  const note = hist?.notes || getAutomatedTahsinJilidNote(jNum, sc, student.name);
+                  const isCurrent = jNum === (tahsin.jilid || 6);
+                  return (
+                    <div
+                      key={jNum}
+                      className={`p-2 rounded-lg border text-xs ${
+                        isCurrent
+                          ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-bold text-[11px] mb-0.5">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-4 h-4 rounded-full bg-emerald-800 text-white flex items-center justify-center text-[9px]">
+                            {jNum}
+                          </span>
+                          <span>Iqro' Jilid {jNum} ({hist?.status || (jNum < (tahsin.jilid || 6) ? 'Lulus' : 'Aktif')})</span>
+                        </span>
+                        <span className="text-emerald-800 font-mono font-bold">Nilai: {sc}</span>
+                      </div>
+                      <p className="text-[10.5px] text-slate-600 italic leading-snug">
+                        "{note}"
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="space-y-3 text-xs">
               {hasIqroAspects ? (
                 tahsin.aspects!.map((asp) => {
@@ -628,6 +669,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         settings={settings}
         teacherName={teacherName}
         onUpdateSettings={onUpdateSettings}
+        onUpdateReport={onUpdateReport}
       />
     </div>
   );

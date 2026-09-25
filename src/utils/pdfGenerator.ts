@@ -207,7 +207,7 @@ export function generateRapotPDF(
   doc.setTextColor(15, 15, 15);
   doc.text('A. Materi Pelajaran', leftMargin, currentY);
   currentY += 3.4;
-  doc.text('1. Tahsin', leftMargin + 2, currentY);
+  doc.text('1. Tahsin (Evaluasi Pembelajaran Metode Iqro\' AMM Yogyakarta)', leftMargin + 2, currentY);
   currentY += 1.2;
 
   // BANGUN TABEL TAHSIN (Mulai dari Jilid 1 sampai 6 Sesuai Permintaan)
@@ -283,16 +283,16 @@ export function generateRapotPDF(
         isFirstRowOfAll = false;
       }
 
-      // Jilid (Rowspan per jilid)
+      // Jilid Iqro' (Rowspan per jilid)
       if (isFirstOfJilid) {
         rowCells.push({
-          content: jilidGroup.jilidLabel,
+          content: `Iqro' ${jilidGroup.jilid}`,
           rowSpan: jilidRowsCount,
-          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold' },
+          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 5 },
         });
       }
 
-      // Aspek Penilaian: Materi Iqra'
+      // Aspek Penilaian: Materi Pokok Iqro'
       rowCells.push({
         content: aspect.name,
         styles: { halign: 'left', valign: 'middle' },
@@ -315,9 +315,9 @@ export function generateRapotPDF(
         rowCells.push({
           content: jilidGroup.keterangan,
           rowSpan: jilidRowsCount,
-          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 5 },
+          styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 4.8 },
         });
-        // Catatan Perkembangan Otomatis Sesuai Nilai Guru (Rowspan per jilid)
+        // Hasil Evaluasi Tahsin per Jilid Iqro' (Rowspan per jilid)
         rowCells.push({
           content: jilidAutoNote,
           rowSpan: jilidRowsCount,
@@ -349,7 +349,7 @@ export function generateRapotPDF(
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
-      fontSize: 5.8,
+      fontSize: 5.6,
       lineColor: [0, 0, 0],
       lineWidth: 0.12,
       cellPadding: 0.5,
@@ -357,24 +357,24 @@ export function generateRapotPDF(
     columnStyles: {
       0: { cellWidth: 5 },  // No
       1: { cellWidth: 14 }, // Mata Pelajaran
-      2: { cellWidth: 7 },  // Jilid
-      3: { cellWidth: 62 }, // Materi Iqra'
-      4: { cellWidth: 10 }, // Angka
-      5: { cellWidth: 10 }, // Huruf
-      6: { cellWidth: 32 }, // Keterangan Kenaikan Jilid
-      7: { cellWidth: 50 }, // Catatan Perkembangan Santri Otomatis
+      2: { cellWidth: 12 }, // Jilid Iqro'
+      3: { cellWidth: 58 }, // Materi Pokok Iqro'
+      4: { cellWidth: 9 },  // Angka
+      5: { cellWidth: 9 },  // Huruf
+      6: { cellWidth: 28 }, // Keterangan Kenaikan Jilid
+      7: { cellWidth: 55 }, // Hasil Evaluasi Tahsin per Jilid Iqro'
     },
     head: [
       [
         { content: 'No', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
         { content: 'Mata Pelajaran', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-        { content: 'Jilid', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        { content: "Jilid Iqro'", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
         { content: 'Aspek Penilaian', colSpan: 3, styles: { halign: 'center' } },
         { content: 'Keterangan Kenaikan Jilid', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-        { content: 'Catatan Perkembangan Santri', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        { content: "Hasil Evaluasi Tahsin per Jilid Iqro'", rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
       ],
       [
-        { content: "Materi Iqra'", styles: { halign: 'center' } },
+        { content: "Materi Pokok Iqro'", styles: { halign: 'center' } },
         { content: 'Angka', styles: { halign: 'center' } },
         { content: 'Huruf', styles: { halign: 'center' } },
       ],
@@ -524,7 +524,7 @@ export function generateRapotPDF(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(15, 15, 15);
-  doc.text('B. Hasil Ujian', leftMargin, currentY);
+  doc.text('B. Hasil Ujian & Evaluasi Akhir', leftMargin, currentY);
   currentY += 1.0;
 
   const examRows = getExamResultRows(reportData);
@@ -568,14 +568,14 @@ export function generateRapotPDF(
       2: { cellWidth: 9 },    // Nilai Angka
       3: { cellWidth: 9 },    // Nilai Huruf
       4: { cellWidth: 16 },   // Predikat
-      5: { cellWidth: 95 },   // Catatan Evaluasi
+      5: { cellWidth: 95 },   // Catatan Evaluasi Penguji
     },
     head: [
       [
         { content: 'No', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
         { content: 'Materi / Jenis Ujian', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-        { content: 'Nilai', colSpan: 3, styles: { halign: 'center' } },
-        { content: 'Catatan Evaluasi', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        { content: 'Hasil Nilai Ujian', colSpan: 3, styles: { halign: 'center' } },
+        { content: 'Catatan Evaluasi Penguji', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
       ],
       [
         { content: 'Angka', styles: { halign: 'center' } },

@@ -429,6 +429,7 @@ export function getExamResultRows(reportData: StudentReportData): ExamResultRow[
     : 92;
 
   const avgTahsin = reportData.tahsin.averageScore || 90;
+  const currentJilid = reportData.tahsin.jilid || 6;
   const avgMurojaah = Math.round((avgTahfiz + avgTahsin) / 2);
 
   const studentName = reportData.student?.name || 'Santri';
@@ -448,15 +449,15 @@ export function getExamResultRows(reportData: StudentReportData): ExamResultRow[
     },
     {
       no: 2,
-      subject: "Ujian Tahsin & Kaidah Tajwid (Makhraj, Mad, & Ghunnah)",
+      subject: `Ujian Tahsin Tilawah & Tajwid (Capaian Iqro' Jilid ${currentJilid})`,
       score: avgTahsin,
       letterGrade: getLetterScore(avgTahsin),
       predicate: avgTahsin >= 91 ? 'Mumtaz' : avgTahsin >= 81 ? 'Jayyid Jiddan' : avgTahsin >= 71 ? 'Jayyid' : avgTahsin >= 61 ? 'Maqbul' : 'Rasib',
       notes: avgTahsin >= 91
-        ? `Fasih dalam melafalkan makhraj huruf, hukum mad, dan dengung ghunnah sesuai kaidah tajwid resmi Al-Azhar.`
+        ? `Fasih dalam melafalkan makhraj huruf, hukum mad, dan dengung ghunnah materi Iqro' Jilid ${currentJilid} sesuai kaidah tajwid resmi Al-Azhar.`
         : avgTahsin >= 81
-        ? `Bagus dalam penerapan hukum tajwid praktis, pertahankan kedisiplinan panjang pendek harakat.`
-        : `Cukup memahami kaidah tajwid dasar, perlu pembiasaan tilawah harian secara terbimbing.`,
+        ? `Bagus dalam penerapan kaidah tajwid praktis materi Iqro' Jilid ${currentJilid}, pertahankan kedisiplinan panjang pendek harakat.`
+        : `Cukup memahami kaidah tajwid dasar Iqro' Jilid ${currentJilid}, perlu pembiasaan tilawah harian secara terbimbing.`,
     },
     {
       no: 3,

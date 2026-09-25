@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Printer, X, FileText, Image as ImageIcon, Upload, RotateCcw, Check, Sparkles, Edit3 } from 'lucide-react';
-import { StudentReportData, SchoolSettings, ExamResult } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Download, Printer, X, FileText, Image as ImageIcon, Upload, RotateCcw, Check, Sparkles, Edit3, Award, BookOpen } from 'lucide-react';
+import { StudentReportData, SchoolSettings, ExamResult, IqroStatus } from '../types';
 import {
   ALAZHAR_TAHSIN_CURRICULUM,
   getTahsinCurriculum,
@@ -12,6 +12,7 @@ import {
   getAutomatedTahsinJilidNote,
   getExamResultRows,
 } from '../data/alazharReportFormat';
+import { IQRO_AMM_JILID_DATA } from '../data/iqroData';
 import { generateRapotPDF } from '../utils/pdfGenerator';
 
 interface RapotPreviewModalProps {
@@ -45,20 +46,42 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
   const [foundationLogoDraft, setFoundationLogoDraft] = useState<string>(settings.foundationLogo || '');
   const [logoSaveSuccess, setLogoSaveSuccess] = useState(false);
 
-  // Modal Edit Hasil Ujian & Catatan Evaluasi
+  // Modal Edit Hasil Ujian & Catatan Evaluasi Jilid Iqro'
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState<'exams' | 'iqro'>('exams');
   const [examSaveSuccess, setExamSaveSuccess] = useState(false);
   const examRows = getExamResultRows(reportData);
   const [examDrafts, setExamDrafts] = useState<Array<{ name: string; score: number; notes: string }>>(() => {
     return examRows.map((r) => ({ name: r.subject, score: r.score, notes: r.notes }));
   });
 
+  // State untuk Evaluasi Jilid Iqro' 1 s.d. 6
+  const initialJilidDrafts = useMemo(() => {
+    const list: Array<{ jilid: number; title: string; score: number; status: IqroStatus; notes: string }> = [];
+    [1, 2, 3, 4, 5, 6].forEach((j) => {
+      const hist = reportData?.tahsin?.jilidHistory?.[j as any];
+      const curScore = hist?.score || (j <= (reportData?.tahsin?.jilid || 6) ? 92 : 88);
+      const autoNote = getAutomatedTahsinJilidNote(j, curScore, reportData?.student?.name, hist?.notes);
+      list.push({
+        jilid: j,
+        title: IQRO_AMM_JILID_DATA[j as any]?.title || `Iqro' Jilid ${j}`,
+        score: curScore,
+        status: (hist?.status as IqroStatus) || (j < (reportData?.tahsin?.jilid || 6) ? 'Lulus (Naik Jilid)' : 'Sedang Ditempuh'),
+        notes: hist?.notes || autoNote,
+      });
+    });
+    return list;
+  }, [reportData]);
+
+  const [jilidDrafts, setJilidDrafts] = useState(initialJilidDrafts);
+
   useEffect(() => {
     if (reportData) {
       const rows = getExamResultRows(reportData);
       setExamDrafts(rows.map((r) => ({ name: r.subject, score: r.score, notes: r.notes })));
+      setJilidDrafts(initialJilidDrafts);
     }
-  }, [reportData, isOpen]);
+  }, [reportData, isOpen, initialJilidDrafts]);
 
   const handleSaveExams = () => {
     if (!reportData) return;
@@ -72,9 +95,26 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
       examinerName: teacherName || settings.coordinatorName || 'Ustadz Pembimbing',
     }));
 
+    // Simpan juga pembaruan evaluasi per Jilid Iqro'
+    const updatedJilidHistory: any = { ...(reportData.tahsin?.jilidHistory || {}) };
+    jilidDrafts.forEach((jd) => {
+      updatedJilidHistory[jd.jilid] = {
+        jilid: jd.jilid,
+        status: jd.status,
+        score: jd.score,
+        predicate: jd.score >= 91 ? 'Mumtaz' : jd.score >= 81 ? 'Jayyid Jiddan' : jd.score >= 71 ? 'Jayyid' : 'Maqbul',
+        completedHalaman: jd.jilid < (reportData.tahsin?.jilid || 6) ? 30 : reportData.tahsin?.halaman || 15,
+        notes: jd.notes,
+      };
+    });
+
     const updatedReport: StudentReportData = {
       ...reportData,
       examResults: updatedExamResults,
+      tahsin: {
+        ...reportData.tahsin,
+        jilidHistory: updatedJilidHistory,
+      },
     };
 
     if (onUpdateReport) {
@@ -430,11 +470,11 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
             </div>
 
             {/* 1. TAHSIN */}
-            <div className="text-[10.5px] sm:text-[11.5px] font-bold text-black mb-1 ml-1">
-              1. Tahsin
+            <div className="text-[10.5px] sm:text-[11.5px] font-bold text-black mb-1 ml-1 flex items-center justify-between">
+              <span>1. Tahsin (Evaluasi Capaian Pembelajaran Metode Iqro' AMM Yogyakarta)</span>
             </div>
 
-            {/* TABEL TAHSIN (MULAI DARI JILID 1 SESUAI PERMINTAAN) */}
+            {/* TABEL TAHSIN (LENGKAP EVALUASI PER JILID IQRO') */}
             <div className="overflow-x-auto mb-2.5">
               <table className="w-full border-collapse border border-black text-[9px] sm:text-[9.5px]">
                 <thead>
@@ -445,8 +485,8 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                     <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-14">
                       Mata Pelajaran
                     </th>
-                    <th rowSpan={2} className="border border-black py-0.5 px-0.5 text-center font-bold w-7">
-                      Jilid
+                    <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-13">
+                      Jilid Iqro'
                     </th>
                     <th colSpan={3} className="border border-black py-0.5 px-1 text-center font-bold">
                       Aspek Penilaian
@@ -455,11 +495,11 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                       Keterangan Kenaikan Jilid
                     </th>
                     <th rowSpan={2} className="border border-black py-0.5 px-1.5 text-center font-bold">
-                      Catatan Pembelajaran & Perkembangan Santri
+                      Hasil Evaluasi Tahsin per Jilid Iqro'
                     </th>
                   </tr>
                   <tr className="bg-white">
-                    <th className="border border-black py-0.5 px-1 text-center font-bold">Materi Iqra'</th>
+                    <th className="border border-black py-0.5 px-1 text-center font-bold">Materi Pokok Iqro'</th>
                     <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Angka</th>
                     <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Huruf</th>
                   </tr>
@@ -532,9 +572,9 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                           {isFirstOfGroup && (
                             <td
                               rowSpan={group.aspects.length}
-                              className="border border-black text-center font-bold align-middle py-0.5 px-0.5"
+                              className="border border-black text-center font-bold align-middle py-0.5 px-0.5 text-[8.5px] sm:text-[9px]"
                             >
-                              {group.jilidLabel}
+                              Iqro' {group.jilid}
                             </td>
                           )}
                           <td className="border border-black py-0.5 px-1.5 text-left leading-tight">
@@ -622,7 +662,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
 
             {/* B. HASIL UJIAN (Dengan Kolom Nilai & Catatan Evaluasi Sesuai Permintaan) */}
             <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-black mb-1">
-              <span>B. Hasil Ujian</span>
+              <span>B. Hasil Ujian & Evaluasi Akhir</span>
               <button
                 type="button"
                 onClick={() => setIsExamModalOpen(true)}
@@ -630,7 +670,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                 title="Klik untuk mengubah nilai ujian dan catatan evaluasi"
               >
                 <Edit3 className="w-3 h-3" />
-                <span>Ubah Nilai & Evaluasi</span>
+                <span>Ubah Hasil Ujian & Evaluasi Iqro'</span>
               </button>
             </div>
 
@@ -646,10 +686,10 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                       Materi / Jenis Ujian
                     </th>
                     <th colSpan={3} className="border border-black py-0.5 px-1 text-center font-bold">
-                      Nilai
+                      Hasil Nilai Ujian
                     </th>
                     <th rowSpan={2} className="border border-black py-0.5 px-2 text-center font-bold">
-                      Catatan Evaluasi
+                      Catatan Evaluasi Penguji
                     </th>
                   </tr>
                   <tr className="bg-white">
@@ -908,21 +948,21 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
         </div>
       )}
 
-      {/* MODAL KUSTOMISASI NILAI & CATATAN EVALUASI UJIAN */}
+      {/* MODAL KUSTOMISASI NILAI & CATATAN EVALUASI UJIAN SERTA TAHSIN PER JILID IQRO' */}
       {isExamModalOpen && (
-        <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in duration-150 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center text-teal-700">
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">
-                    Sesuaikan Hasil Ujian & Catatan Evaluasi ({student.name})
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                    Hasil Evaluasi Tahsin per Jilid Iqro' & Hasil Ujian ({student.name})
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Nilai angka, predikat huruf, dan catatan evaluasi akan langsung tercetak pada lembar Rapot resmi 1 lembar santri ini.
+                    Nilai dan catatan evaluasi akan langsung tercetak pada lembar Rapot resmi santri ini.
                   </p>
                 </div>
               </div>
@@ -935,64 +975,190 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               </button>
             </div>
 
-            <div className="space-y-4">
-              {examDrafts.map((draft, idx) => (
-                <div key={idx} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-teal-700 text-white flex items-center justify-center text-[10px]">
-                        {idx + 1}
-                      </span>
-                      <span>{draft.name}</span>
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-slate-600 font-semibold">Nilai (0-100):</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={draft.score}
-                        onChange={(e) => {
-                          const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                          setExamDrafts((prev) =>
-                            prev.map((item, i) => (i === idx ? { ...item, score: val } : item))
-                          );
-                        }}
-                        className="w-20 bg-white border border-slate-300 rounded-lg p-1.5 text-center font-bold text-slate-900 text-xs focus:ring-2 focus:ring-teal-600 focus:outline-none"
-                      />
-                      <span className="text-xs font-bold px-2 py-1 rounded bg-teal-100 text-teal-800 border border-teal-200">
-                        {getLetterScore(draft.score)} ({draft.score >= 91 ? 'Mumtaz' : draft.score >= 81 ? 'Jayyid Jiddan' : draft.score >= 71 ? 'Jayyid' : draft.score >= 61 ? 'Maqbul' : 'Rasib'})
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-700 font-medium">Catatan Evaluasi Penguji / Rekomendasi:</label>
-                    <textarea
-                      rows={2}
-                      value={draft.notes}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setExamDrafts((prev) =>
-                          prev.map((item, i) => (i === idx ? { ...item, notes: val } : item))
-                        );
-                      }}
-                      className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-800 focus:ring-2 focus:ring-teal-600 focus:outline-none leading-relaxed"
-                      placeholder="Masukkan catatan evaluasi untuk santri ini..."
-                    />
-                  </div>
-                </div>
-              ))}
+            {/* TAB SELECTOR: Hasil Ujian vs Evaluasi Jilid Iqro' */}
+            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setModalTab('exams')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  modalTab === 'exams'
+                    ? 'bg-white text-teal-800 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Award className="w-4 h-4 text-amber-500" />
+                <span>Hasil Ujian (Tahfiz & Tahsin)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('iqro')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  modalTab === 'iqro'
+                    ? 'bg-white text-teal-800 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+                <span>Hasil Evaluasi Tahsin per Jilid Iqro' (1 - 6)</span>
+              </button>
             </div>
 
+            {/* TAB 1: HASIL UJIAN */}
+            {modalTab === 'exams' && (
+              <div className="space-y-3.5">
+                {examDrafts.map((draft, idx) => (
+                  <div key={idx} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-teal-700 text-white flex items-center justify-center text-[10px]">
+                          {idx + 1}
+                        </span>
+                        <span>{draft.name}</span>
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-slate-600 font-semibold">Nilai Ujian (0-100):</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={draft.score}
+                          onChange={(e) => {
+                            const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                            setExamDrafts((prev) =>
+                              prev.map((item, i) => (i === idx ? { ...item, score: val } : item))
+                            );
+                          }}
+                          className="w-20 bg-white border border-slate-300 rounded-lg p-1.5 text-center font-bold text-slate-900 text-xs focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                        />
+                        <span className="text-xs font-bold px-2 py-1 rounded bg-teal-100 text-teal-800 border border-teal-200">
+                          {getLetterScore(draft.score)} ({draft.score >= 91 ? 'Mumtaz' : draft.score >= 81 ? 'Jayyid Jiddan' : draft.score >= 71 ? 'Jayyid' : draft.score >= 61 ? 'Maqbul' : 'Rasib'})
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-700 font-medium">Catatan Evaluasi Penguji / Rekomendasi:</label>
+                      <textarea
+                        rows={2}
+                        value={draft.notes}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setExamDrafts((prev) =>
+                            prev.map((item, i) => (i === idx ? { ...item, notes: val } : item))
+                          );
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-800 focus:ring-2 focus:ring-teal-600 focus:outline-none leading-relaxed"
+                        placeholder="Masukkan catatan evaluasi hasil ujian untuk santri ini..."
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* TAB 2: EVALUASI TAHSIN PER JILID IQRO' */}
+            {modalTab === 'iqro' && (
+              <div className="space-y-3.5">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-center justify-between">
+                  <span>
+                    💡 <strong>Evaluasi Jilid Iqro':</strong> Ubah nilai rata-rata, keterangan kelulusan, dan catatan evaluasi pedagogis untuk masing-masing Iqro' Jilid 1 sampai 6.
+                  </span>
+                </div>
+
+                {jilidDrafts.map((jd, idx) => (
+                  <div key={jd.jilid} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-700 text-white flex items-center justify-center text-[10px]">
+                          {jd.jilid}
+                        </span>
+                        <span>Iqro' Jilid {jd.jilid} ({jd.title})</span>
+                      </span>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-slate-600 font-medium">Status:</label>
+                          <select
+                            value={jd.status}
+                            onChange={(e) => {
+                              const val = e.target.value as IqroStatus;
+                              setJilidDrafts((prev) =>
+                                prev.map((item, i) => (i === idx ? { ...item, status: val } : item))
+                              );
+                            }}
+                            className="bg-white border border-slate-300 rounded-lg py-1 px-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-600"
+                          >
+                            <option value="Lulus (Naik Jilid)">Lulus (Naik Jilid)</option>
+                            <option value="Sedang Ditempuh">Sedang Ditempuh</option>
+                            <option value="Perlu Pengulangan">Perlu Pengulangan</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-slate-600 font-medium">Nilai:</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={jd.score}
+                            onChange={(e) => {
+                              const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                              setJilidDrafts((prev) =>
+                                prev.map((item, i) => (i === idx ? { ...item, score: val } : item))
+                              );
+                            }}
+                            className="w-16 bg-white border border-slate-300 rounded-lg p-1 text-center font-bold text-slate-900 text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                          />
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            {getLetterScore(jd.score)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs text-slate-700 font-medium">Hasil Evaluasi Pembelajaran Iqro' Jilid {jd.jilid}:</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const autoNote = getAutomatedTahsinJilidNote(jd.jilid, jd.score, student.name);
+                            setJilidDrafts((prev) =>
+                              prev.map((item, i) => (i === idx ? { ...item, notes: autoNote } : item))
+                            );
+                          }}
+                          className="text-[11px] text-teal-700 hover:text-teal-900 underline font-medium cursor-pointer"
+                        >
+                          Gunakan Rekomendasi Otomatis
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={jd.notes}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setJilidDrafts((prev) =>
+                            prev.map((item, i) => (i === idx ? { ...item, notes: val } : item))
+                          );
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none leading-relaxed"
+                        placeholder={`Masukkan catatan evaluasi kompetensi tajwid & makhraj untuk Iqro' Jilid ${jd.jilid}...`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Tombol Simpan */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => {
                   const rows = getExamResultRows({ ...reportData, examResults: undefined });
                   setExamDrafts(rows.map((r) => ({ name: r.subject, score: r.score, notes: r.notes })));
+                  setJilidDrafts(initialJilidDrafts);
                 }}
                 className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
               >
@@ -1020,7 +1186,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                       <span>Berhasil Disimpan ke Rapot!</span>
                     </>
                   ) : (
-                    <span>Simpan Hasil Ujian & Evaluasi</span>
+                    <span>Simpan Hasil Evaluasi & Ujian</span>
                   )}
                 </button>
               </div>
