@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Printer, X, FileText, Image as ImageIcon, Upload, RotateCcw, Check, Sparkles } from 'lucide-react';
-import { StudentReportData, SchoolSettings } from '../types';
+import { Download, Printer, X, FileText, Image as ImageIcon, Upload, RotateCcw, Check, Sparkles, Edit3 } from 'lucide-react';
+import { StudentReportData, SchoolSettings, ExamResult } from '../types';
 import {
   ALAZHAR_TAHSIN_CURRICULUM,
   getTahsinCurriculum,
@@ -10,6 +10,7 @@ import {
   getLetterScore,
   RENTANG_NILAI_STANDARDS,
   getAutomatedTahsinJilidNote,
+  getExamResultRows,
 } from '../data/alazharReportFormat';
 import { generateRapotPDF } from '../utils/pdfGenerator';
 
@@ -20,6 +21,7 @@ interface RapotPreviewModalProps {
   settings: SchoolSettings;
   teacherName?: string;
   onUpdateSettings?: (newSettings: SchoolSettings) => void;
+  onUpdateReport?: (studentId: string, updatedReport: StudentReportData) => void;
 }
 
 export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
@@ -29,6 +31,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
   settings,
   teacherName,
   onUpdateSettings,
+  onUpdateReport,
 }) => {
   if (!isOpen || !reportData) return null;
 
@@ -41,6 +44,55 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
   const [schoolLogoDraft, setSchoolLogoDraft] = useState<string>(settings.schoolLogo || '');
   const [foundationLogoDraft, setFoundationLogoDraft] = useState<string>(settings.foundationLogo || '');
   const [logoSaveSuccess, setLogoSaveSuccess] = useState(false);
+
+  // Modal Edit Hasil Ujian & Catatan Evaluasi
+  const [isExamModalOpen, setIsExamModalOpen] = useState(false);
+  const [examSaveSuccess, setExamSaveSuccess] = useState(false);
+  const examRows = getExamResultRows(reportData);
+  const [examDrafts, setExamDrafts] = useState<Array<{ name: string; score: number; notes: string }>>(() => {
+    return examRows.map((r) => ({ name: r.subject, score: r.score, notes: r.notes }));
+  });
+
+  useEffect(() => {
+    if (reportData) {
+      const rows = getExamResultRows(reportData);
+      setExamDrafts(rows.map((r) => ({ name: r.subject, score: r.score, notes: r.notes })));
+    }
+  }, [reportData, isOpen]);
+
+  const handleSaveExams = () => {
+    if (!reportData) return;
+    const updatedExamResults: ExamResult[] = examDrafts.map((d, idx) => ({
+      id: `exam-${idx + 1}`,
+      name: d.name,
+      score: d.score,
+      letterGrade: getLetterScore(d.score),
+      predicate: d.score >= 91 ? 'Mumtaz' : d.score >= 81 ? 'Jayyid Jiddan' : d.score >= 71 ? 'Jayyid' : d.score >= 61 ? 'Maqbul' : 'Rasib',
+      notes: d.notes,
+      examinerName: teacherName || settings.coordinatorName || 'Ustadz Pembimbing',
+    }));
+
+    const updatedReport: StudentReportData = {
+      ...reportData,
+      examResults: updatedExamResults,
+    };
+
+    if (onUpdateReport) {
+      onUpdateReport(reportData.student.id, updatedReport);
+    }
+    try {
+      const saved = localStorage.getItem('smpia9_reports_v1');
+      const allReps = saved ? JSON.parse(saved) : {};
+      allReps[reportData.student.id] = updatedReport;
+      localStorage.setItem('smpia9_reports_v1', JSON.stringify(allReps));
+    } catch {}
+
+    setExamSaveSuccess(true);
+    setTimeout(() => {
+      setExamSaveSuccess(false);
+      setIsExamModalOpen(false);
+    }, 700);
+  };
 
   useEffect(() => {
     setSchoolLogoDraft(settings.schoolLogo || '');
@@ -243,6 +295,17 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
             >
               <ImageIcon className="w-4 h-4" />
               <span>Ganti Logo Sekolah</span>
+            </button>
+
+            {/* Tombol Edit Nilai & Catatan Evaluasi Ujian */}
+            <button
+              type="button"
+              onClick={() => setIsExamModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
+              title="Ubah nilai dan catatan evaluasi hasil ujian rapot santri"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>Edit Hasil Ujian</span>
             </button>
 
             <button
@@ -562,6 +625,71 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               </table>
             </div>
 
+            {/* B. HASIL UJIAN (Dengan Kolom Nilai & Catatan Evaluasi Sesuai Permintaan) */}
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-black mb-1">
+              <span>B. Hasil Ujian</span>
+              <button
+                type="button"
+                onClick={() => setIsExamModalOpen(true)}
+                className="no-print text-[9px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                title="Klik untuk mengubah nilai ujian dan catatan evaluasi"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>Ubah Nilai & Evaluasi</span>
+              </button>
+            </div>
+
+            {/* TABEL HASIL UJIAN */}
+            <div className="overflow-x-auto mb-2.5">
+              <table className="w-full border-collapse border border-black text-[8px] sm:text-[8.5px]">
+                <thead>
+                  <tr className="bg-white">
+                    <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-5">
+                      No
+                    </th>
+                    <th rowSpan={2} className="border border-black py-0.5 px-2 text-center font-bold w-52 sm:w-60">
+                      Materi / Jenis Ujian
+                    </th>
+                    <th colSpan={3} className="border border-black py-0.5 px-1 text-center font-bold">
+                      Nilai
+                    </th>
+                    <th rowSpan={2} className="border border-black py-0.5 px-2 text-center font-bold">
+                      Catatan Evaluasi
+                    </th>
+                  </tr>
+                  <tr className="bg-white">
+                    <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Angka</th>
+                    <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Huruf</th>
+                    <th className="border border-black py-0.5 px-1 text-center font-bold w-16">Predikat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {examRows.map((row) => (
+                    <tr key={row.no} className="hover:bg-slate-50/50">
+                      <td className="border border-black py-0.5 px-1 text-center font-bold font-mono">
+                        {row.no}
+                      </td>
+                      <td className="border border-black py-0.5 px-2 text-left font-semibold">
+                        {row.subject}
+                      </td>
+                      <td className="border border-black py-0.5 px-0.5 text-center font-mono font-bold">
+                        {row.score}
+                      </td>
+                      <td className="border border-black py-0.5 px-0.5 text-center font-bold">
+                        {row.letterGrade}
+                      </td>
+                      <td className="border border-black py-0.5 px-1 text-center text-[7.5px] sm:text-[8px] font-semibold">
+                        {row.predicate}
+                      </td>
+                      <td className="border border-black py-0.5 px-2 text-left text-[7.5px] sm:text-[8px] italic text-slate-800 leading-snug">
+                        {row.notes}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             {/* FOOTER: RENTANG NILAI (KIRI) & TANDA TANGAN (KANAN) */}
             <div className="grid grid-cols-2 gap-3 pt-1">
               {/* Sisi Kiri: Rentang Nilai */}
@@ -777,6 +905,127 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                     </>
                   ) : (
                     <span>Simpan untuk Semua Rapot Murid</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KUSTOMISASI NILAI & CATATAN EVALUASI UJIAN */}
+      {isExamModalOpen && (
+        <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center text-teal-700">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    Sesuaikan Hasil Ujian & Catatan Evaluasi ({student.name})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Nilai angka, predikat huruf, dan catatan evaluasi akan langsung tercetak pada lembar Rapot resmi 1 lembar santri ini.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsExamModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {examDrafts.map((draft, idx) => (
+                <div key={idx} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-teal-700 text-white flex items-center justify-center text-[10px]">
+                        {idx + 1}
+                      </span>
+                      <span>{draft.name}</span>
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-slate-600 font-semibold">Nilai (0-100):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={draft.score}
+                        onChange={(e) => {
+                          const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                          setExamDrafts((prev) =>
+                            prev.map((item, i) => (i === idx ? { ...item, score: val } : item))
+                          );
+                        }}
+                        className="w-20 bg-white border border-slate-300 rounded-lg p-1.5 text-center font-bold text-slate-900 text-xs focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                      />
+                      <span className="text-xs font-bold px-2 py-1 rounded bg-teal-100 text-teal-800 border border-teal-200">
+                        {getLetterScore(draft.score)} ({draft.score >= 91 ? 'Mumtaz' : draft.score >= 81 ? 'Jayyid Jiddan' : draft.score >= 71 ? 'Jayyid' : draft.score >= 61 ? 'Maqbul' : 'Rasib'})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-700 font-medium">Catatan Evaluasi Penguji / Rekomendasi:</label>
+                    <textarea
+                      rows={2}
+                      value={draft.notes}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setExamDrafts((prev) =>
+                          prev.map((item, i) => (i === idx ? { ...item, notes: val } : item))
+                        );
+                      }}
+                      className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-800 focus:ring-2 focus:ring-teal-600 focus:outline-none leading-relaxed"
+                      placeholder="Masukkan catatan evaluasi untuk santri ini..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tombol Simpan */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => {
+                  const rows = getExamResultRows({ ...reportData, examResults: undefined });
+                  setExamDrafts(rows.map((r) => ({ name: r.subject, score: r.score, notes: r.notes })));
+                }}
+                className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset ke Nilai & Evaluasi Otomatis</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsExamModalOpen(false)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveExams}
+                  disabled={examSaveSuccess}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+                >
+                  {examSaveSuccess ? (
+                    <>
+                      <Check className="w-4 h-4 text-teal-200" />
+                      <span>Berhasil Disimpan ke Rapot!</span>
+                    </>
+                  ) : (
+                    <span>Simpan Hasil Ujian & Evaluasi</span>
                   )}
                 </button>
               </div>

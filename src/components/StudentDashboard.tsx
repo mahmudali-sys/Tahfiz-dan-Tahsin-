@@ -17,6 +17,7 @@ import {
 import { StudentReportData, SchoolSettings, Teacher } from '../types';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { IQRO_AMM_JILID_DATA, IqroJilid } from '../data/iqroData';
+import { getExamResultRows } from '../data/alazharReportFormat';
 import { generateRapotPDF } from '../utils/pdfGenerator';
 import { RapotPreviewModal } from './RapotPreviewModal';
 
@@ -65,6 +66,27 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   tahfizRecords.forEach((rec) => {
     completedSurahMap.set(rec.surahNumber, rec);
   });
+
+  // Opsi Juz Tab: Juz 30, 29, 28, 27, 26 Sesuai Permintaan
+  const JUZ_TABS = [
+    { num: 30, name: "Juz 30 ('Amma)", sub: 'Surat 78 - 114' },
+    { num: 29, name: 'Juz 29 (Tabarak)', sub: 'Surat 67 - 77' },
+    { num: 28, name: "Juz 28 (Qad Sami'a)", sub: 'Surat 58 - 66' },
+    { num: 27, name: 'Juz 27 (Adz-Dzariyat)', sub: 'Surat 51 - 57' },
+    { num: 26, name: 'Juz 26 (Al-Ahqaf)', sub: 'Surat 46 - 50' },
+  ];
+
+  const getJuzStats = (juzNum: number) => {
+    const list = QURAN_SURAHS.filter((s) => s.juz === juzNum);
+    const mutqinCount = list.filter((s) => {
+      const rec = completedSurahMap.get(s.number);
+      return rec && rec.isMutqin;
+    }).length;
+    return { mutqinCount, total: list.length };
+  };
+
+  // Hasil Ujian & Catatan Evaluasi Santri
+  const examRows = getExamResultRows(reportData);
 
   return (
     <div className="space-y-6">
@@ -194,28 +216,37 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 </p>
               </div>
 
-              {/* Juz Switcher Tabs */}
-              <div className="inline-flex p-1 bg-slate-100 rounded-xl">
-                <button
-                  onClick={() => setSelectedJuzTab(30)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    selectedJuzTab === 30
-                      ? 'bg-emerald-800 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Juz 30 ('Amma)
-                </button>
-                <button
-                  onClick={() => setSelectedJuzTab(29)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    selectedJuzTab === 29
-                      ? 'bg-emerald-800 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Juz 29 (Tabarak)
-                </button>
+              {/* Juz Switcher Tabs: Juz 30, 29, 28, 27, 26 */}
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+                {JUZ_TABS.map((tab) => {
+                  const stats = getJuzStats(tab.num);
+                  const isSelected = selectedJuzTab === tab.num;
+                  return (
+                    <button
+                      key={tab.num}
+                      onClick={() => setSelectedJuzTab(tab.num)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-800 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      }`}
+                      title={`${tab.name} (${tab.sub})`}
+                    >
+                      <span>{tab.name}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
+                          isSelected
+                            ? 'bg-emerald-700 text-emerald-100'
+                            : stats.mutqinCount === stats.total && stats.total > 0
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {stats.mutqinCount}/{stats.total}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -356,6 +387,67 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 </table>
               </div>
             )}
+          </div>
+
+          {/* Card Hasil Ujian & Catatan Evaluasi Santri */}
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-emerald-700" />
+                  Hasil Ujian & Catatan Evaluasi Santri
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Rekap nilai ujian komprehensif Tahfiz & Tahsin semester ini beserta catatan evaluasi penguji (Format Rapot Resmi).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPreviewOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 transition-colors border border-emerald-200 cursor-pointer self-start sm:self-auto"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Lihat Format Rapot Resmi</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 text-slate-700 uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="py-2.5 px-3 text-center w-10">No</th>
+                    <th className="py-2.5 px-3 w-56">Materi / Jenis Ujian</th>
+                    <th className="py-2.5 px-3 text-center w-24">Nilai</th>
+                    <th className="py-2.5 px-3 text-center w-28">Predikat</th>
+                    <th className="py-2.5 px-4">Catatan Evaluasi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {examRows.map((row) => (
+                    <tr key={row.no} className="hover:bg-slate-50/70">
+                      <td className="py-3 px-3 text-center font-bold text-slate-500 font-mono">
+                        {row.no}
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-slate-900">
+                        {row.subject}
+                      </td>
+                      <td className="py-3 px-3 text-center font-mono font-bold text-slate-900 text-sm">
+                        {row.score}
+                        <span className="text-xs text-slate-500 ml-1 font-sans font-normal">({row.letterGrade})</span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${getPredicateColor(row.predicate)}`}>
+                          {row.predicate}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-700 text-xs leading-relaxed italic">
+                        {row.notes}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

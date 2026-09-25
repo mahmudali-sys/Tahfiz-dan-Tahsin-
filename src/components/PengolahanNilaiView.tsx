@@ -1621,6 +1621,10 @@ export const PengolahanNilaiView: React.FC<PengolahanNilaiViewProps> = ({
           settings={settings}
           teacherName={currentTeacher?.name || teachers[0]?.name || 'Ustadz Pembimbing'}
           onUpdateSettings={onUpdateSettings}
+          onUpdateReport={(studentId, updatedReport) => {
+            onUpdateReport(studentId, updatedReport);
+            setPreviewStudentReport(updatedReport);
+          }}
         />
       )}
 

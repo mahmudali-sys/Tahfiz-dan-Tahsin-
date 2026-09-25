@@ -1232,6 +1232,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           settings={settings}
           teacherName={teachers.find((t) => t.id === previewReport.student.teacherId)?.name}
           onUpdateSettings={onUpdateSettings}
+          onUpdateReport={(studentId, updatedReport) => {
+            onUpdateReport(studentId, updatedReport);
+            setPreviewReport(updatedReport);
+          }}
         />
       )}
 

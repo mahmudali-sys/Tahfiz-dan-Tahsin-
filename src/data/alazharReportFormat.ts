@@ -1,3 +1,5 @@
+import { StudentReportData, ExamResult } from '../types';
+
 export interface TahsinAspectItem {
   id: string;
   name: string;
@@ -399,3 +401,75 @@ export function getAutomatedTahsinJilidNote(
     }
   }
 }
+
+export interface ExamResultRow {
+  no: number;
+  subject: string;
+  score: number;
+  letterGrade: 'A' | 'B' | 'C' | 'D' | 'E';
+  predicate: 'Mumtaz' | 'Jayyid Jiddan' | 'Jayyid' | 'Maqbul' | 'Rasib';
+  notes: string;
+}
+
+export function getExamResultRows(reportData: StudentReportData): ExamResultRow[] {
+  if (reportData.examResults && reportData.examResults.length > 0) {
+    return reportData.examResults.map((e, idx) => ({
+      no: idx + 1,
+      subject: e.name,
+      score: e.score,
+      letterGrade: e.letterGrade || getLetterScore(e.score),
+      predicate: (e.predicate as any) || (getLetterScore(e.score) === 'A' ? 'Mumtaz' : getLetterScore(e.score) === 'B' ? 'Jayyid Jiddan' : getLetterScore(e.score) === 'C' ? 'Jayyid' : getLetterScore(e.score) === 'D' ? 'Maqbul' : 'Rasib'),
+      notes: e.notes,
+    }));
+  }
+
+  const tahfizScores = reportData.tahfizRecords.map((r) => r.gradeScore).filter((s) => s > 0);
+  const avgTahfiz = tahfizScores.length > 0
+    ? Math.round(tahfizScores.reduce((a, b) => a + b, 0) / tahfizScores.length)
+    : 92;
+
+  const avgTahsin = reportData.tahsin.averageScore || 90;
+  const avgMurojaah = Math.round((avgTahfiz + avgTahsin) / 2);
+
+  const studentName = reportData.student?.name || 'Santri';
+
+  return [
+    {
+      no: 1,
+      subject: "Ujian Tahfiz Al-Qur'an (Kelancaran & Ketepatan Hafalan)",
+      score: avgTahfiz,
+      letterGrade: getLetterScore(avgTahfiz),
+      predicate: avgTahfiz >= 91 ? 'Mumtaz' : avgTahfiz >= 81 ? 'Jayyid Jiddan' : avgTahfiz >= 71 ? 'Jayyid' : avgTahfiz >= 61 ? 'Maqbul' : 'Rasib',
+      notes: avgTahfiz >= 91
+        ? `Hafalan Ananda ${studentName} sangat mutqin, makharijul huruf tepat, waqaf-ibtida' tertib, dan tartil.`
+        : avgTahfiz >= 81
+        ? `Hafalan baik dan lancar, perlu meningkatkan ketelitian pada sambung ayat dan tanda waqaf.`
+        : `Hafalan cukup, disarankan memperbanyak frekuensi muroja'ah mandiri dan simakan di rumah.`,
+    },
+    {
+      no: 2,
+      subject: "Ujian Tahsin & Kaidah Tajwid (Makhraj, Mad, & Ghunnah)",
+      score: avgTahsin,
+      letterGrade: getLetterScore(avgTahsin),
+      predicate: avgTahsin >= 91 ? 'Mumtaz' : avgTahsin >= 81 ? 'Jayyid Jiddan' : avgTahsin >= 71 ? 'Jayyid' : avgTahsin >= 61 ? 'Maqbul' : 'Rasib',
+      notes: avgTahsin >= 91
+        ? `Fasih dalam melafalkan makhraj huruf, hukum mad, dan dengung ghunnah sesuai kaidah tajwid resmi Al-Azhar.`
+        : avgTahsin >= 81
+        ? `Bagus dalam penerapan hukum tajwid praktis, pertahankan kedisiplinan panjang pendek harakat.`
+        : `Cukup memahami kaidah tajwid dasar, perlu pembiasaan tilawah harian secara terbimbing.`,
+    },
+    {
+      no: 3,
+      subject: "Ujian Muroja'ah & Ketahanan Sambung Ayat (Fashahah)",
+      score: avgMurojaah,
+      letterGrade: getLetterScore(avgMurojaah),
+      predicate: avgMurojaah >= 91 ? 'Mumtaz' : avgMurojaah >= 81 ? 'Jayyid Jiddan' : avgMurojaah >= 71 ? 'Jayyid' : avgMurojaah >= 61 ? 'Maqbul' : 'Rasib',
+      notes: avgMurojaah >= 91
+        ? `Daya ingat sambung ayat sangat baik dan tenang saat diuji. Siap melanjutkan target hafalan juz berikutnya.`
+        : avgMurojaah >= 81
+        ? `Mampu menyambung ayat dengan baik, pertahankan istiqomah dalam halaqah Al-Qur'an.`
+        : `Daya sambung ayat cukup, perlu memperbanyak simakan berpasangan sebelum ujian kenaikan tingkat.`,
+    },
+  ];
+}
+

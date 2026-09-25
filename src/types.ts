@@ -110,6 +110,18 @@ export interface AdabAttitudeGrade {
   generalNotes: string;
 }
 
+export interface ExamResult {
+  id: string;
+  name: string; // e.g. "Ujian Tahfiz Al-Qur'an", "Ujian Tahsin & Kaidah Tajwid", "Ujian Muroja'ah & Ketahanan Hafalan"
+  category?: 'Tahfiz' | 'Tahsin' | 'Komprehensif';
+  score: number; // 0-100
+  letterGrade?: 'A' | 'B' | 'C' | 'D' | 'E';
+  predicate?: 'Mumtaz' | 'Jayyid Jiddan' | 'Jayyid' | 'Maqbul' | 'Rasib';
+  notes: string; // Catatan Evaluasi
+  date?: string;
+  examinerName?: string;
+}
+
 export interface StudentReportData {
   student: Student;
   tahsin: TahsinGrade;
@@ -122,6 +134,7 @@ export interface StudentReportData {
     currentJuzInProgress: number;
     completionPercentage: number;
   };
+  examResults?: ExamResult[];
 }
 
 export interface SurahMeta {

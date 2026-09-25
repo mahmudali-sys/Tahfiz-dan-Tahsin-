@@ -10,6 +10,7 @@ import {
   getLetterScore,
   RENTANG_NILAI_STANDARDS,
   getAutomatedTahsinJilidNote,
+  getExamResultRows,
 } from '../data/alazharReportFormat';
 
 function drawAlAzharLogo(doc: jsPDF, x: number, y: number, radius: number) {
@@ -523,9 +524,78 @@ export function generateRapotPDF(
   });
 
   // @ts-ignore
-  currentY = doc.lastAutoTable.finalY + 2.8;
+  currentY = doc.lastAutoTable.finalY + 2.2;
 
-  // 5. FOOTER: RENTANG NILAI (KIRI) & TANDA TANGAN (KANAN)
+  // 5. BAGIAN B: HASIL UJIAN (Dengan Kolom Nilai & Catatan Evaluasi Sesuai Permintaan)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(15, 15, 15);
+  doc.text('B. Hasil Ujian', leftMargin, currentY);
+  currentY += 1.0;
+
+  const examRows = getExamResultRows(reportData);
+  const examTableBody: any[] = examRows.map((r) => [
+    { content: r.no.toString(), styles: { halign: 'center', valign: 'middle', fontStyle: 'bold' } },
+    { content: r.subject, styles: { halign: 'left', valign: 'middle', fontStyle: 'bold' } },
+    { content: r.score.toString(), styles: { halign: 'center', valign: 'middle' } },
+    { content: r.letterGrade, styles: { halign: 'center', valign: 'middle', fontStyle: 'bold' } },
+    { content: r.predicate, styles: { halign: 'center', valign: 'middle', fontSize: 4.8 } },
+    { content: r.notes, styles: { halign: 'left', valign: 'middle', fontStyle: 'italic', fontSize: 4.6 } },
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    margin: { left: leftMargin, right: rightMargin },
+    theme: 'plain',
+    tableWidth: contentWidth,
+    pageBreak: 'avoid',
+    styles: {
+      fontSize: 5.0,
+      cellPadding: 0.32,
+      textColor: [0, 0, 0],
+      lineColor: [0, 0, 0],
+      lineWidth: 0.12,
+      font: 'helvetica',
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      halign: 'center',
+      valign: 'middle',
+      fontSize: 5.3,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.12,
+      cellPadding: 0.35,
+    },
+    columnStyles: {
+      0: { cellWidth: 5.5 },  // No
+      1: { cellWidth: 55.5 }, // Materi / Jenis Ujian
+      2: { cellWidth: 9 },    // Nilai Angka
+      3: { cellWidth: 9 },    // Nilai Huruf
+      4: { cellWidth: 16 },   // Predikat
+      5: { cellWidth: 95 },   // Catatan Evaluasi
+    },
+    head: [
+      [
+        { content: 'No', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        { content: 'Materi / Jenis Ujian', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+        { content: 'Nilai', colSpan: 3, styles: { halign: 'center' } },
+        { content: 'Catatan Evaluasi', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+      ],
+      [
+        { content: 'Angka', styles: { halign: 'center' } },
+        { content: 'Huruf', styles: { halign: 'center' } },
+        { content: 'Predikat', styles: { halign: 'center' } },
+      ],
+    ],
+    body: examTableBody,
+  });
+
+  // @ts-ignore
+  currentY = doc.lastAutoTable.finalY + 2.2;
+
+  // 6. FOOTER: RENTANG NILAI (KIRI) & TANDA TANGAN (KANAN)
   const footerLeftX = leftMargin + 2;
   const footerRightX = pageWidth - rightMargin - 40;
 

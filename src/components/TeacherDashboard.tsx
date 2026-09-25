@@ -574,6 +574,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           settings={settings}
           teacherName={currentTeacher.name}
           onUpdateSettings={onUpdateSettings}
+          onUpdateReport={(studentId, updatedReport) => {
+            onUpdateReport(studentId, updatedReport);
+            setSelectedStudentForPreview(updatedReport);
+          }}
         />
       )}
 
