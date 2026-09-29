@@ -316,10 +316,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             <button
               onClick={() => setSimakanStudent(filteredStudents[0])}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
-              title="Buka Lembaran Mushaf Al-Qur'an untuk menyimak bacaan murid"
+              title="Buka Lembaran Mushaf Al-Qur'an untuk menyimak & koreksi hafalan santri (Makhorijul Huruf, Tajwid, Mad)"
             >
               <BookOpen className="w-4 h-4 text-emerald-300" />
-              <span>Layar Simakan Al-Qur'an</span>
+              <span>Koreksi Tasmi' Al-Qur'an</span>
             </button>
           )}
         </div>
@@ -497,14 +497,14 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           <span>Absen & Setor</span>
                         </button>
 
-                        {/* Simak Al-Qur'an Live Button */}
+                        {/* Simak / Koreksi Tasmi' Al-Qur'an Live Button */}
                         <button
                           onClick={() => setSimakanStudent(student)}
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-lg shadow-xs transition-colors cursor-pointer text-xs"
-                          title="Buka layar Al-Qur'an untuk menyimak hafalan murid & catat kesalahan secara live"
+                          title="Buka layar Al-Qur'an untuk menyimak & koreksi hafalan santri (Makhorijul Huruf, Tajwid, Mad, & Evaluasi)"
                         >
                           <BookOpen className="w-3.5 h-3.5 text-emerald-200" />
-                          <span>Simak Qur'an</span>
+                          <span>Tasmi' Qur'an</span>
                         </button>
 
                         {/* Input/Ubah Nilai Button */}

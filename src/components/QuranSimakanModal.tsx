@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   X, 
   BookOpen, 
   CheckCircle2, 
   AlertTriangle, 
-  HelpCircle, 
   Volume2, 
   VolumeX, 
   Sparkles, 
@@ -12,20 +11,194 @@ import {
   Maximize2, 
   Minimize2, 
   Save, 
-  UserCheck, 
   Tag, 
   FileText, 
-  Layers,
-  ChevronRight,
-  ChevronLeft,
-  Settings2,
+  ChevronRight, 
+  ChevronLeft, 
+  Calendar,
+  Award,
+  Check,
+  RotateCcw,
+  AlertCircle,
   Info,
-  Calendar
+  ChevronDown
 } from 'lucide-react';
 import { Student, TahfizSurahRecord } from '../types';
 import { formatToIndonesianDate } from './IndonesianDatePicker';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { getSurahDetail, SurahDetail, AyahData } from '../utils/quranService';
+
+export type MistakeCategory = 
+  | 'makhorijul_huruf' 
+  | 'hukum_tajwid' 
+  | 'bacaan_mad' 
+  | 'tawaqquf' 
+  | 'lahn_jali';
+
+export interface AyahMistakeTag {
+  id: string;
+  ayahNumber: number;
+  category: MistakeCategory;
+  label: string;
+  detail?: string;
+}
+
+export const MISTAKE_PRESETS: Record<
+  MistakeCategory,
+  {
+    name: string;
+    shortName: string;
+    badgeBg: string;
+    chipBg: string;
+    textColor: string;
+    borderColor: string;
+    btnBg: string;
+    subtypes: string[];
+  }
+> = {
+  makhorijul_huruf: {
+    name: 'Makhorijul Huruf',
+    shortName: 'Makhraj',
+    badgeBg: 'bg-blue-100 text-blue-900 border-blue-300',
+    chipBg: 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100',
+    textColor: 'text-blue-700',
+    borderColor: 'border-blue-300',
+    btnBg: 'bg-blue-700 hover:bg-blue-600 text-white',
+    subtypes: [
+      "Huruf 'Ain (ع) & Hamzah (أ)",
+      "Huruf Ha (ح) & Ha' (هـ)",
+      "Huruf Kha (خ) & Ghain (غ)",
+      "Huruf Shad (ص) & Sin (س)",
+      "Huruf Dhad (ض) & Dal (د) / Zha (ظ)",
+      "Huruf Tha (ط) & Ta (ت)",
+      "Huruf Tsa (ث) & Sin (س)",
+      "Huruf Dzal (ذ) & Zay (ز)",
+      "Huruf Qaf (ق) & Kaf (ك)",
+      "Tafkhim Huruf Tebal (Isti'la')",
+      "Sifat Huruf (Hams, Shafir, Qalqalah)",
+    ],
+  },
+  hukum_tajwid: {
+    name: 'Hukum Tajwid',
+    shortName: 'Tajwid',
+    badgeBg: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+    chipBg: 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100',
+    textColor: 'text-emerald-700',
+    borderColor: 'border-emerald-300',
+    btnBg: 'bg-emerald-700 hover:bg-emerald-600 text-white',
+    subtypes: [
+      "Ghunnah (Nun/Mim Bertasydid 2 Harakat)",
+      "Ikhfa Hakiki (Kurang Samar / Dengung)",
+      "Idgham Bighunnah (Kurang Melebur)",
+      "Idgham Bilaghunnah (Terbaca Dengung)",
+      "Iqlab (Kurang Dengung / Bibir Terlalu Rapat)",
+      "Idzhar Halqi / Syafawi (Terbaca Dengung)",
+      "Qalqalah Sughra / Kubra (Kurang Mantul)",
+      "Hukum Ra' / Lam (Tafkhim / Tarqiq)",
+      "Waqaf & Ibtida' (Salah Tempat Berhenti)",
+    ],
+  },
+  bacaan_mad: {
+    name: 'Bacaan Mad',
+    shortName: 'Mad',
+    badgeBg: 'bg-purple-100 text-purple-900 border-purple-300',
+    chipBg: 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100',
+    textColor: 'text-purple-700',
+    borderColor: 'border-purple-300',
+    btnBg: 'bg-purple-700 hover:bg-purple-600 text-white',
+    subtypes: [
+      "Mad Thobi'i Kurang 2 Harakat (Terbaca Pendek)",
+      "Mad Thobi'i Terlalu Panjang (> 2 Harakat)",
+      "Harakat Pendek Dipanjangkan / Terseret",
+      "Mad Wajib Muttashil Kurang 4-5 Harakat",
+      "Mad Jaiz Munfashil Tidak Konsisten",
+      "Mad Lazim Kurang 6 Harakat",
+      "Mad 'Aridh Lissukun Tidak Tertib",
+    ],
+  },
+  tawaqquf: {
+    name: 'Lupa / Tersendat',
+    shortName: 'Lupa',
+    badgeBg: 'bg-amber-100 text-amber-900 border-amber-300',
+    chipBg: 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100',
+    textColor: 'text-amber-700',
+    borderColor: 'border-amber-300',
+    btnBg: 'bg-amber-700 hover:bg-amber-600 text-white',
+    subtypes: [
+      "Lupa Sambungan Ayat (Perlu Talqin)",
+      "Tersendat > 3 Detik",
+      "Ragu-ragu / Terbata-bata",
+    ],
+  },
+  lahn_jali: {
+    name: 'Salah Harakat / Kata',
+    shortName: 'Harakat',
+    badgeBg: 'bg-rose-100 text-rose-900 border-rose-300',
+    chipBg: 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100',
+    textColor: 'text-rose-700',
+    borderColor: 'border-rose-300',
+    btnBg: 'bg-rose-700 hover:bg-rose-600 text-white',
+    subtypes: [
+      "Fathah / Kasrah / Dhammah Tertukar",
+      "Sukun Terbaca Hidup",
+      "Kata Tertukar / Terlewat",
+    ],
+  },
+};
+
+/**
+ * Generator Catatan Evaluasi Kesalahan Otomatis
+ */
+export function generateTasmiEvaluationNotes(
+  surahName: string,
+  ayatFrom: number,
+  ayatTo: number,
+  score: number,
+  predicate: string,
+  isMutqin: boolean,
+  tags: AyahMistakeTag[]
+): string {
+  if (tags.length === 0) {
+    return `Evaluasi Tasmi' ${surahName} (Ayat ${ayatFrom}-${ayatTo}): Alhamdulillah bacaan sangat mutqin (Nilai: ${score}, Predikat: ${predicate}). Makharijul huruf fasih, kaidah hukum tajwid tepat, dan panjang pendek mad terjaga sangat tertib.`;
+  }
+
+  const makhraj = tags.filter((t) => t.category === 'makhorijul_huruf');
+  const tajwid = tags.filter((t) => t.category === 'hukum_tajwid');
+  const mad = tags.filter((t) => t.category === 'bacaan_mad');
+  const tawaqquf = tags.filter((t) => t.category === 'tawaqquf');
+  const lahnJali = tags.filter((t) => t.category === 'lahn_jali');
+
+  const statsParts: string[] = [];
+  if (makhraj.length > 0) statsParts.push(`${makhraj.length}x Makhorijul Huruf`);
+  if (tajwid.length > 0) statsParts.push(`${tajwid.length}x Hukum Tajwid`);
+  if (mad.length > 0) statsParts.push(`${mad.length}x Bacaan Mad`);
+  if (tawaqquf.length > 0) statsParts.push(`${tawaqquf.length}x Lupa/Tersendat`);
+  if (lahnJali.length > 0) statsParts.push(`${lahnJali.length}x Salah Harakat`);
+
+  const verseDetails = tags.map((t) => {
+    const detailText = t.detail ? ` (${t.detail})` : '';
+    return `Ayat ${t.ayahNumber}: ${MISTAKE_PRESETS[t.category].name}${detailText}`;
+  }).join('; ');
+
+  const recommendations: string[] = [];
+  if (makhraj.length > 0) {
+    recommendations.push("Pertajam ketelitian bunyi makhraj huruf (khususnya huruf halaq dan lisan pada ayat yang dikoreksi)");
+  }
+  if (tajwid.length > 0) {
+    recommendations.push("Jaga kesempurnaan dengung ghunnah 2 harakat dan kejelasan hukum nun/mim sukun");
+  }
+  if (mad.length > 0) {
+    recommendations.push("Disiplin panjang mad thobi'i tepat 2 harakat dan hindari menyeret harakat pendek 1 ketukan");
+  }
+  if (tawaqquf.length > 0) {
+    recommendations.push("Perbanyak simakan muroja'ah berpasangan untuk menguatkan kelancaran sambung ayat");
+  }
+
+  const adviceText = recommendations.length > 0 ? ` Saran: ${recommendations.join('. ')}.` : '';
+  const statusText = isMutqin ? 'Lulus / Mutqin' : 'Perlu Pengulangan Muroja\'ah';
+
+  return `Evaluasi Tasmi' ${surahName} (Ayat ${ayatFrom}-${ayatTo}) [${statusText} - Nilai: ${score} (${predicate})]. Rekap Koreksi: ${statsParts.join(', ')}. Rincian Koreksi: ${verseDetails}.${adviceText}`;
+}
 
 interface QuranSimakanModalProps {
   isOpen: boolean;
@@ -34,12 +207,6 @@ interface QuranSimakanModalProps {
   teacherName: string;
   onSaveTahfizResult: (newRecord: TahfizSurahRecord) => void;
   initialSurahNumber?: number;
-}
-
-export interface AyahMistakeTag {
-  ayahNumber: number;
-  type: 'tawaqquf' | 'lahn_jali' | 'lahn_khafi';
-  label: string;
 }
 
 export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
@@ -52,24 +219,33 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Determine initial surah from student target or prop
   const defaultSurahNum = initialSurahNumber || (student.className.startsWith('9') ? 58 : student.className.startsWith('8') ? 67 : 78);
 
   const [selectedSurahNumber, setSelectedSurahNumber] = useState<number>(defaultSurahNum);
   const [surahDetail, setSurahDetail] = useState<SurahDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Range of verses for this setoran session
   const [ayatFrom, setAyatFrom] = useState<number>(1);
   const [ayatTo, setAyatTo] = useState<number>(1);
 
-  // Mistake counters (Al Azhar Tahfiz evaluation standard)
-  const [tawaqqufCount, setTawaqqufCount] = useState<number>(0); // Lupa / Tersendat (-2)
-  const [lahnJaliCount, setLahnJaliCount] = useState<number>(0); // Salah Harakat / Huruf (-1.5)
-  const [lahnKhafiCount, setLahnKhafiCount] = useState<number>(0); // Salah Tajwid / Mad / Ghunnah (-0.5)
+  // 5 Counter Kesalahan Tasmi'
+  const [makhorijulHurufCount, setMakhorijulHurufCount] = useState<number>(0);
+  const [hukumTajwidCount, setHukumTajwidCount] = useState<number>(0);
+  const [bacaanMadCount, setBacaanMadCount] = useState<number>(0);
+  const [tawaqqufCount, setTawaqqufCount] = useState<number>(0);
+  const [lahnJaliCount, setLahnJaliCount] = useState<number>(0);
 
-  // Per-Ayah error tags
+  // Rincian ayat yang dikoreksi
   const [taggedAyahs, setTaggedAyahs] = useState<AyahMistakeTag[]>([]);
+
+  // Subtype Picker Modal / Popover State
+  const [pickerModalState, setPickerModalState] = useState<{
+    ayahNumber: number;
+    category: MistakeCategory;
+  } | null>(null);
+
+  // Floating picker for continuous mushaf mode
+  const [selectedMushafAyah, setSelectedMushafAyah] = useState<number | null>(null);
 
   // Score override & Mutqin & Tanggal Setoran Hafalan
   const [manualScore, setManualScore] = useState<number | null>(null);
@@ -83,11 +259,10 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
   const [showTranslation, setShowTranslation] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  // Audio tilawah helper (for teacher to verify tricky tajweed)
+  // Audio tilawah helper
   const [playingAudioAyah, setPlayingAudioAyah] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Load surah detail when selectedSurahNumber changes
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -108,59 +283,144 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     };
   }, [selectedSurahNumber]);
 
-  // Calculate live score from mistake counters if not manually overridden
-  const calculatedScore = Math.max(
-    50,
-    Math.round((100 - (tawaqqufCount * 2) - (lahnJaliCount * 1.5) - (lahnKhafiCount * 0.5)) * 10) / 10
-  );
+  // Kalkulasi Skor Otomatis Berdasarkan Koreksi
+  const calculatedScore = useMemo(() => {
+    const raw = 100 -
+      (tawaqqufCount * 2.0) -
+      (lahnJaliCount * 1.5) -
+      (makhorijulHurufCount * 1.0) -
+      (hukumTajwidCount * 0.75) -
+      (bacaanMadCount * 0.75);
+    return Math.max(50, Math.round(raw * 10) / 10);
+  }, [tawaqqufCount, lahnJaliCount, makhorijulHurufCount, hukumTajwidCount, bacaanMadCount]);
+
   const activeScore = manualScore !== null ? manualScore : calculatedScore;
   const currentPredicate = getPredicate(activeScore);
 
-  // Add mistake tag to specific ayah
-  const handleAddMistake = (ayahNumber: number, type: 'tawaqquf' | 'lahn_jali' | 'lahn_khafi') => {
-    const label = 
-      type === 'tawaqquf' ? 'Tersendat/Lupa' :
-      type === 'lahn_jali' ? 'Salah Harakat/Huruf' : 'Tajwid/Ghunnah';
-
-    setTaggedAyahs((prev) => [...prev, { ayahNumber, type, label }]);
-
-    if (type === 'tawaqquf') setTawaqqufCount((v) => v + 1);
-    if (type === 'lahn_jali') setLahnJaliCount((v) => v + 1);
-    if (type === 'lahn_khafi') setLahnKhafiCount((v) => v + 1);
-
-    // Auto update notes
-    const newNoteFragment = `Ayat ${ayahNumber}: ${label}`;
-    setNotes((prev) => (prev ? `${prev}; ${newNoteFragment}` : newNoteFragment));
-
-    if (activeScore < 80) {
+  // Sinkronkan status kelulusan Mutqin
+  useEffect(() => {
+    if (activeScore < 80 || tawaqqufCount >= 4) {
       setIsMutqin(false);
+    } else {
+      setIsMutqin(true);
+    }
+  }, [activeScore, tawaqqufCount]);
+
+  // Tambahkan koreksi kesalahan ke ayat
+  const handleAddMistake = (ayahNumber: number, category: MistakeCategory, specificDetail?: string) => {
+    const preset = MISTAKE_PRESETS[category];
+    const newTag: AyahMistakeTag = {
+      id: `tag-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      ayahNumber,
+      category,
+      label: preset.name,
+      detail: specificDetail,
+    };
+
+    const updatedTags = [...taggedAyahs, newTag];
+    setTaggedAyahs(updatedTags);
+
+    if (category === 'makhorijul_huruf') setMakhorijulHurufCount((v) => v + 1);
+    if (category === 'hukum_tajwid') setHukumTajwidCount((v) => v + 1);
+    if (category === 'bacaan_mad') setBacaanMadCount((v) => v + 1);
+    if (category === 'tawaqquf') setTawaqqufCount((v) => v + 1);
+    if (category === 'lahn_jali') setLahnJaliCount((v) => v + 1);
+
+    // Update catatan otomatis
+    if (surahDetail) {
+      const generated = generateTasmiEvaluationNotes(
+        surahDetail.name,
+        ayatFrom,
+        ayatTo,
+        activeScore,
+        currentPredicate,
+        isMutqin,
+        updatedTags
+      );
+      setNotes(generated);
+    }
+
+    setPickerModalState(null);
+  };
+
+  // Hapus koreksi
+  const handleRemoveTag = (tagId: string) => {
+    const item = taggedAyahs.find((t) => t.id === tagId);
+    if (!item) return;
+
+    if (item.category === 'makhorijul_huruf') setMakhorijulHurufCount((v) => Math.max(0, v - 1));
+    if (item.category === 'hukum_tajwid') setHukumTajwidCount((v) => Math.max(0, v - 1));
+    if (item.category === 'bacaan_mad') setBacaanMadCount((v) => Math.max(0, v - 1));
+    if (item.category === 'tawaqquf') setTawaqqufCount((v) => Math.max(0, v - 1));
+    if (item.category === 'lahn_jali') setLahnJaliCount((v) => Math.max(0, v - 1));
+
+    const updatedTags = taggedAyahs.filter((t) => t.id !== tagId);
+    setTaggedAyahs(updatedTags);
+
+    if (surahDetail) {
+      const generated = generateTasmiEvaluationNotes(
+        surahDetail.name,
+        ayatFrom,
+        ayatTo,
+        activeScore,
+        currentPredicate,
+        isMutqin,
+        updatedTags
+      );
+      setNotes(generated);
     }
   };
 
-  // Remove tag
-  const handleRemoveTag = (index: number) => {
-    const item = taggedAyahs[index];
-    if (!item) return;
-
-    if (item.type === 'tawaqquf') setTawaqqufCount((v) => Math.max(0, v - 1));
-    if (item.type === 'lahn_jali') setLahnJaliCount((v) => Math.max(0, v - 1));
-    if (item.type === 'lahn_khafi') setLahnKhafiCount((v) => Math.max(0, v - 1));
-
-    setTaggedAyahs((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Reset counters
+  // Reset semua koreksi
   const handleResetCounters = () => {
+    setMakhorijulHurufCount(0);
+    setHukumTajwidCount(0);
+    setBacaanMadCount(0);
     setTawaqqufCount(0);
     setLahnJaliCount(0);
-    setLahnKhafiCount(0);
     setTaggedAyahs([]);
     setManualScore(null);
-    setNotes('');
     setIsMutqin(true);
+    if (surahDetail) {
+      const generated = generateTasmiEvaluationNotes(
+        surahDetail.name,
+        ayatFrom,
+        ayatTo,
+        100,
+        'Mumtaz',
+        true,
+        []
+      );
+      setNotes(generated);
+    }
   };
 
-  // Play audio of a specific verse (Mishary Rashid Alafasy)
+  // Re-generate Catatan Evaluasi
+  const handleGenerateSmartNotes = () => {
+    if (!surahDetail) return;
+    const generated = generateTasmiEvaluationNotes(
+      surahDetail.name,
+      ayatFrom,
+      ayatTo,
+      activeScore,
+      currentPredicate,
+      isMutqin,
+      taggedAyahs
+    );
+    setNotes(generated);
+  };
+
+  // Tambahkan rekomendasi cepat ke catatan
+  const appendRecommendation = (recText: string) => {
+    setNotes((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return recText;
+      if (trimmed.includes(recText)) return trimmed;
+      return `${trimmed} Tambahan: ${recText}`;
+    });
+  };
+
+  // Audio helper
   const handlePlayAyah = (ayahNum: number) => {
     if (playingAudioAyah === ayahNum) {
       if (audioRef.current) {
@@ -170,9 +430,6 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
       return;
     }
 
-    // Format global verse number or surah:ayah
-    // alquran.cloud audio endpoint format: https://cdn.islamic.network/quran/audio/128/ar.alafasy/{globalAyahNumber}.mp3
-    // Or direct surah/ayah on everyayah: https://everyayah.com/data/Alafasy_128kbps/001001.mp3
     const sStr = String(selectedSurahNumber).padStart(3, '0');
     const aStr = String(ayahNum).padStart(3, '0');
     const audioUrl = `https://everyayah.com/data/Alafasy_128kbps/${sStr}${aStr}.mp3`;
@@ -194,11 +451,19 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     };
   };
 
-  // Save tahfiz record directly
+  // Simpan record tasmi'
   const handleSaveResult = () => {
     if (!surahDetail) return;
 
-    const finalNotes = notes.trim() || (activeScore >= 90 ? 'Lancar, tartil, dan fashih.' : 'Perlu murojaah pada ayat yang ditandai.');
+    const finalNotes = notes.trim() || generateTasmiEvaluationNotes(
+      surahDetail.name,
+      ayatFrom,
+      ayatTo,
+      activeScore,
+      currentPredicate,
+      isMutqin,
+      taggedAyahs
+    );
 
     const newRecord: TahfizSurahRecord = {
       id: `rec-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -219,27 +484,27 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     onClose();
   };
 
-  // Filter ayahs based on range
   const visibleAyahs = (surahDetail?.ayahs || []).filter(
     (a) => a.numberInSurah >= ayatFrom && a.numberInSurah <= ayatTo
   );
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto transition-all ${isFullscreen ? 'p-0' : ''}`}>
-      <div className={`bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 transition-all ${isFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-5xl max-h-[95vh]'}`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto transition-all ${isFullscreen ? 'p-0' : ''}`}>
+      <div className={`bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 transition-all ${isFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-5xl max-h-[96vh]'}`}>
         
         {/* Top Header Bar */}
         <div className="bg-emerald-900 text-white px-4 sm:px-6 py-3.5 flex items-center justify-between shrink-0 shadow-md">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-800 rounded-xl border border-emerald-700">
+            <div className="p-2 bg-emerald-800 rounded-xl border border-emerald-700 shadow-xs">
               <BookOpen className="w-5 h-5 text-emerald-300" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] sm:text-xs uppercase tracking-wider font-extrabold text-emerald-300">
-                  Layar Simakan Al-Qur'an (Mode Tasmi' Halaqah)
+                <span className="text-[10px] sm:text-xs uppercase tracking-wider font-extrabold text-emerald-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Koreksi & Evaluasi Tasmi' Al-Qur'an</span>
                 </span>
-                <span className="bg-emerald-800/80 text-emerald-200 px-2 py-0.2 rounded text-[10px] font-semibold border border-emerald-700">
+                <span className="bg-emerald-800 text-emerald-200 px-2 py-0.2 rounded text-[10px] font-semibold border border-emerald-700">
                   SMP Islam Al Azhar 9
                 </span>
               </div>
@@ -254,110 +519,92 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-1.5 text-emerald-200 hover:text-white hover:bg-emerald-800 rounded-lg cursor-pointer transition-colors"
-              title={isFullscreen ? "Kecilkan Layar" : "Layar Penuh (Fokus Simakan)"}
+              title={isFullscreen ? "Kecilkan Layar" : "Layar Penuh (Fokus Tasmi')"}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-emerald-200 hover:text-white hover:bg-emerald-800 rounded-lg cursor-pointer transition-colors"
-              title="Tutup Layar Simakan"
+              className="p-1.5 text-emerald-200 hover:text-white hover:bg-rose-700/80 rounded-lg cursor-pointer transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Secondary Bar: Surah Selection & Range */}
-        <div className="bg-slate-50 px-4 sm:px-6 py-3 border-b border-slate-200 shrink-0 flex flex-wrap items-center justify-between gap-3">
+        {/* Secondary Bar: Selection of Surah, Range, Date & Display */}
+        <div className="bg-slate-100/90 border-b border-slate-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
           <div className="flex flex-wrap items-center gap-3">
-            
-            {/* Surah Dropdown */}
+            {/* Surah Selector */}
             <div className="flex items-center gap-1.5">
-              <label className="text-xs font-bold text-slate-700">Pilih Surah:</label>
+              <label className="font-bold text-slate-800">Surah:</label>
               <select
                 value={selectedSurahNumber}
                 onChange={(e) => setSelectedSurahNumber(Number(e.target.value))}
-                className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 font-bold shadow-xs focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+                className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-emerald-950 focus:ring-2 focus:ring-emerald-700 cursor-pointer shadow-2xs max-w-[210px] sm:max-w-xs"
               >
-                <optgroup label="Target Utama Kelas 7 (Juz 30)">
+                <optgroup label="Target Kelas 7 (Juz 30)">
                   {QURAN_SURAHS.filter((s) => s.juz === 30).map((s) => (
                     <option key={s.number} value={s.number}>
-                      {s.number}. {s.name} ({s.arabic}) - {s.totalAyat} ayat
+                      {s.number}. {s.name} ({s.arabic}) - {s.totalAyat} Ayat
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="Target Kelas 8 (Juz 29)">
                   {QURAN_SURAHS.filter((s) => s.juz === 29).map((s) => (
                     <option key={s.number} value={s.number}>
-                      {s.number}. {s.name} ({s.arabic}) - {s.totalAyat} ayat
+                      {s.number}. {s.name} ({s.arabic}) - {s.totalAyat} Ayat
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="Target Kelas 9 (Juz 28)">
                   {QURAN_SURAHS.filter((s) => s.juz === 28).map((s) => (
                     <option key={s.number} value={s.number}>
-                      {s.number}. {s.name} ({s.arabic}) - {s.totalAyat} ayat
+                      {s.number}. {s.name} ({s.arabic}) - {s.totalAyat} Ayat
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Surah Lainnya / Juz 1 - 27">
+                <optgroup label="Surat Lainnya (Juz 1 - 27)">
                   {QURAN_SURAHS.filter((s) => s.juz < 28).map((s) => (
                     <option key={s.number} value={s.number}>
-                      {s.number}. {s.name} ({s.arabic}) - Juz {s.juz}
+                      {s.number}. {s.name} (Juz {s.juz})
                     </option>
                   ))}
                 </optgroup>
               </select>
             </div>
 
-            {/* Verse Range */}
-            {surahDetail && (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                <span>Rentang Ayat:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={ayatTo}
-                  value={ayatFrom}
-                  onChange={(e) => setAyatFrom(Math.max(1, Math.min(Number(e.target.value), ayatTo)))}
-                  className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-1 text-center font-bold text-slate-900"
-                />
-                <span>s.d.</span>
-                <input
-                  type="number"
-                  min={ayatFrom}
-                  max={surahDetail.numberOfAyahs}
-                  value={ayatTo}
-                  onChange={(e) => setAyatTo(Math.max(ayatFrom, Math.min(Number(e.target.value), surahDetail.numberOfAyahs)))}
-                  className="w-14 bg-white border border-slate-300 rounded-lg px-2 py-1 text-center font-bold text-slate-900"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAyatFrom(1);
-                    setAyatTo(surahDetail.numberOfAyahs);
-                  }}
-                  className="text-[11px] text-emerald-800 hover:text-emerald-950 underline font-semibold ml-1 cursor-pointer"
-                >
-                  Semua ({surahDetail.numberOfAyahs})
-                </button>
-              </div>
-            )}
+            {/* Range of Verses */}
+            <div className="flex items-center gap-1.5">
+              <label className="font-bold text-slate-800">Ayat:</label>
+              <input
+                type="number"
+                min={1}
+                max={ayatTo}
+                value={ayatFrom}
+                onChange={(e) => setAyatFrom(Math.max(1, Math.min(ayatTo, Number(e.target.value) || 1)))}
+                className="w-13 bg-white border border-slate-300 rounded-lg px-1.5 py-1 text-center font-bold text-xs"
+              />
+              <span className="text-slate-500 font-bold">s/d</span>
+              <input
+                type="number"
+                min={ayatFrom}
+                max={surahDetail?.numberOfAyahs || 1}
+                value={ayatTo}
+                onChange={(e) => setAyatTo(Math.max(ayatFrom, Math.min(surahDetail?.numberOfAyahs || 1, Number(e.target.value) || 1)))}
+                className="w-13 bg-white border border-slate-300 rounded-lg px-1.5 py-1 text-center font-bold text-xs"
+              />
+            </div>
 
-            {/* Tanggal Setoran Hafalan */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-xl border border-slate-300 shadow-2xs">
+            {/* Setoran Date */}
+            <div className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-              <label className="font-bold text-slate-800">Tgl Setoran:</label>
               <input
                 type="date"
                 value={setoranDate}
                 onChange={(e) => setSetoranDate(e.target.value)}
-                className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-0.5 text-xs text-slate-900 font-bold focus:ring-1 focus:ring-emerald-600 cursor-pointer"
+                className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-xs text-slate-900 font-bold focus:ring-1 focus:ring-emerald-600 cursor-pointer"
               />
-              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                {formatToIndonesianDate(setoranDate, true)}
-              </span>
             </div>
           </div>
 
@@ -386,7 +633,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
 
             {/* Font Size toggles */}
             <div className="flex items-center gap-1 bg-white border border-slate-300 px-2 py-1 rounded-lg text-[11px] font-bold text-slate-700">
-              <span className="text-slate-400 mr-0.5">Ukuran:</span>
+              <span className="text-slate-400 mr-0.5">Teks:</span>
               <button
                 type="button"
                 onClick={() => setFontSize('medium')}
@@ -417,109 +664,147 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                 showTranslation ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-white text-slate-600 border-slate-300'
               }`}
             >
-              {showTranslation ? 'Terjemah: Aktif' : 'Terjemah: Nonaktif'}
+              {showTranslation ? 'Terjemah: ON' : 'Terjemah: OFF'}
             </button>
           </div>
         </div>
 
-        {/* Evaluation Summary Sticky Bar */}
-        <div className="bg-emerald-50/70 border-b border-emerald-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          {/* Quick Counter Buttons */}
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="font-bold text-emerald-950 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Pencatat Kesalahan (Simakan):</span>
+        {/* 5 KATEGORI KOREKSI HAFIZ (STICKY BAR DENGAN MAKHORIJUL HURUF, HUKUM TAJWID, BACAAN MAD) */}
+        <div className="bg-emerald-50/90 border-b border-emerald-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-2xs">
+          
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-extrabold text-emerald-950 flex items-center gap-1.5 mr-1">
+              <Award className="w-4 h-4 text-emerald-700" />
+              <span>Pencatat Koreksi:</span>
             </span>
 
-            {/* Lupa / Tersendat */}
-            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 px-2 py-1 rounded-lg">
-              <span className="text-amber-900 font-bold">Lupa/Tersendat (-2):</span>
+            {/* 1. Makhorijul Huruf (-1.0) */}
+            <div className="flex items-center gap-1 bg-blue-50 border border-blue-300 px-2 py-0.5 rounded-lg shadow-2xs">
+              <span className="text-blue-900 font-bold text-[11px]">Makhorijul Huruf (-1):</span>
+              <button
+                type="button"
+                onClick={() => setMakhorijulHurufCount((v) => Math.max(0, v - 1))}
+                className="w-4.5 h-4.5 rounded bg-white text-blue-900 font-bold flex items-center justify-center border border-blue-200 hover:bg-blue-100 cursor-pointer text-xs"
+              >
+                -
+              </button>
+              <span className="font-mono font-extrabold text-blue-950 w-5 text-center">{makhorijulHurufCount}</span>
+              <button
+                type="button"
+                onClick={() => setMakhorijulHurufCount((v) => v + 1)}
+                className="w-4.5 h-4.5 rounded bg-blue-700 text-white font-bold flex items-center justify-center hover:bg-blue-800 cursor-pointer text-xs"
+              >
+                +
+              </button>
+            </div>
+
+            {/* 2. Hukum Tajwid (-0.75) */}
+            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-lg shadow-2xs">
+              <span className="text-emerald-900 font-bold text-[11px]">Hukum Tajwid (-0.75):</span>
+              <button
+                type="button"
+                onClick={() => setHukumTajwidCount((v) => Math.max(0, v - 1))}
+                className="w-4.5 h-4.5 rounded bg-white text-emerald-900 font-bold flex items-center justify-center border border-emerald-200 hover:bg-emerald-100 cursor-pointer text-xs"
+              >
+                -
+              </button>
+              <span className="font-mono font-extrabold text-emerald-950 w-5 text-center">{hukumTajwidCount}</span>
+              <button
+                type="button"
+                onClick={() => setHukumTajwidCount((v) => v + 1)}
+                className="w-4.5 h-4.5 rounded bg-emerald-700 text-white font-bold flex items-center justify-center hover:bg-emerald-800 cursor-pointer text-xs"
+              >
+                +
+              </button>
+            </div>
+
+            {/* 3. Bacaan Mad (-0.75) */}
+            <div className="flex items-center gap-1 bg-purple-50 border border-purple-300 px-2 py-0.5 rounded-lg shadow-2xs">
+              <span className="text-purple-900 font-bold text-[11px]">Bacaan Mad (-0.75):</span>
+              <button
+                type="button"
+                onClick={() => setBacaanMadCount((v) => Math.max(0, v - 1))}
+                className="w-4.5 h-4.5 rounded bg-white text-purple-900 font-bold flex items-center justify-center border border-purple-200 hover:bg-purple-100 cursor-pointer text-xs"
+              >
+                -
+              </button>
+              <span className="font-mono font-extrabold text-purple-950 w-5 text-center">{bacaanMadCount}</span>
+              <button
+                type="button"
+                onClick={() => setBacaanMadCount((v) => v + 1)}
+                className="w-4.5 h-4.5 rounded bg-purple-700 text-white font-bold flex items-center justify-center hover:bg-purple-800 cursor-pointer text-xs"
+              >
+                +
+              </button>
+            </div>
+
+            {/* 4. Lupa / Tersendat (-2.0) */}
+            <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-lg shadow-2xs">
+              <span className="text-amber-900 font-bold text-[11px]">Lupa (-2):</span>
               <button
                 type="button"
                 onClick={() => setTawaqqufCount((v) => Math.max(0, v - 1))}
-                className="w-5 h-5 rounded bg-white text-amber-900 font-bold flex items-center justify-center border border-amber-200 hover:bg-amber-100 cursor-pointer"
+                className="w-4.5 h-4.5 rounded bg-white text-amber-900 font-bold flex items-center justify-center border border-amber-200 hover:bg-amber-100 cursor-pointer text-xs"
               >
                 -
               </button>
-              <span className="font-mono font-bold text-amber-950 w-5 text-center">{tawaqqufCount}</span>
+              <span className="font-mono font-extrabold text-amber-950 w-5 text-center">{tawaqqufCount}</span>
               <button
                 type="button"
                 onClick={() => setTawaqqufCount((v) => v + 1)}
-                className="w-5 h-5 rounded bg-amber-800 text-white font-bold flex items-center justify-center hover:bg-amber-900 cursor-pointer"
+                className="w-4.5 h-4.5 rounded bg-amber-700 text-white font-bold flex items-center justify-center hover:bg-amber-800 cursor-pointer text-xs"
               >
                 +
               </button>
             </div>
 
-            {/* Salah Harakat / Huruf (Lahn Jali) */}
-            <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-300 px-2 py-1 rounded-lg">
-              <span className="text-rose-900 font-bold">Salah Harakat/Huruf (-1.5):</span>
+            {/* 5. Salah Harakat (-1.5) */}
+            <div className="flex items-center gap-1 bg-rose-50 border border-rose-300 px-2 py-0.5 rounded-lg shadow-2xs">
+              <span className="text-rose-900 font-bold text-[11px]">Harakat (-1.5):</span>
               <button
                 type="button"
                 onClick={() => setLahnJaliCount((v) => Math.max(0, v - 1))}
-                className="w-5 h-5 rounded bg-white text-rose-900 font-bold flex items-center justify-center border border-rose-200 hover:bg-rose-100 cursor-pointer"
+                className="w-4.5 h-4.5 rounded bg-white text-rose-900 font-bold flex items-center justify-center border border-rose-200 hover:bg-rose-100 cursor-pointer text-xs"
               >
                 -
               </button>
-              <span className="font-mono font-bold text-rose-950 w-5 text-center">{lahnJaliCount}</span>
+              <span className="font-mono font-extrabold text-rose-950 w-5 text-center">{lahnJaliCount}</span>
               <button
                 type="button"
                 onClick={() => setLahnJaliCount((v) => v + 1)}
-                className="w-5 h-5 rounded bg-rose-800 text-white font-bold flex items-center justify-center hover:bg-rose-900 cursor-pointer"
+                className="w-4.5 h-4.5 rounded bg-rose-700 text-white font-bold flex items-center justify-center hover:bg-rose-800 cursor-pointer text-xs"
               >
                 +
               </button>
             </div>
 
-            {/* Salah Tajwid (Lahn Khafi) */}
-            <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-300 px-2 py-1 rounded-lg">
-              <span className="text-purple-900 font-bold">Salah Tajwid/Mad (-0.5):</span>
-              <button
-                type="button"
-                onClick={() => setLahnKhafiCount((v) => Math.max(0, v - 1))}
-                className="w-5 h-5 rounded bg-white text-purple-900 font-bold flex items-center justify-center border border-purple-200 hover:bg-purple-100 cursor-pointer"
-              >
-                -
-              </button>
-              <span className="font-mono font-bold text-purple-950 w-5 text-center">{lahnKhafiCount}</span>
-              <button
-                type="button"
-                onClick={() => setLahnKhafiCount((v) => v + 1)}
-                className="w-5 h-5 rounded bg-purple-800 text-white font-bold flex items-center justify-center hover:bg-purple-900 cursor-pointer"
-              >
-                +
-              </button>
-            </div>
-
-            {/* Reset Button */}
-            {(tawaqqufCount > 0 || lahnJaliCount > 0 || lahnKhafiCount > 0) && (
+            {/* Reset */}
+            {(makhorijulHurufCount > 0 || hukumTajwidCount > 0 || bacaanMadCount > 0 || tawaqqufCount > 0 || lahnJaliCount > 0) && (
               <button
                 type="button"
                 onClick={handleResetCounters}
-                className="text-[11px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                className="text-[11px] text-slate-500 hover:text-slate-800 underline ml-1 cursor-pointer"
               >
                 Reset
               </button>
             )}
           </div>
 
-          {/* Live Score & Predicate Result */}
+          {/* Nilai Setoran & Predikat Live */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-600 font-semibold">Nilai Setoran:</span>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={activeScore}
-                  onChange={(e) => setManualScore(Number(e.target.value))}
-                  className="w-16 bg-white border-2 border-emerald-700 rounded-lg px-2 py-0.5 text-center font-bold text-sm text-emerald-950 shadow-xs"
-                />
-                <span className={`px-2 py-0.5 rounded-lg text-xs font-bold border ${getPredicateColor(currentPredicate)}`}>
-                  {currentPredicate}
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-700 font-bold">Nilai:</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={activeScore}
+                onChange={(e) => setManualScore(Number(e.target.value))}
+                className="w-16 bg-white border-2 border-emerald-700 rounded-lg px-1.5 py-0.5 text-center font-bold text-sm text-emerald-950 shadow-xs"
+              />
+              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold border ${getPredicateColor(currentPredicate)}`}>
+                {currentPredicate}
+              </span>
             </div>
 
             <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-xs">
@@ -535,7 +820,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
         </div>
 
         {/* MAIN BODY: MUSHAF / VERSES */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50/40">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-slate-50/40">
           
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-emerald-800">
@@ -543,7 +828,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <p className="text-sm font-semibold">Sedang membuka lembaran Mushaf Al-Qur'an...</p>
             </div>
           ) : surahDetail ? (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-5">
 
               {/* Surah Header Card (Gaya Mushaf Madinah) */}
               <div className="relative border-2 border-emerald-800/40 bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white rounded-2xl p-4 sm:p-5 text-center shadow-md overflow-hidden">
@@ -561,7 +846,6 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                   Surah ke-{surahDetail.number}: <strong>{surahDetail.name}</strong> • Disimak ayat {ayatFrom} s.d. {ayatTo}
                 </p>
 
-                {/* Bismillah Header (except At-Taubah & Al-Fatihah already verse 1) */}
                 {surahDetail.bismillahPre && (
                   <div className="mt-3 pt-3 border-t border-emerald-700/60 font-serif text-xl sm:text-2xl text-amber-200">
                     بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
@@ -569,39 +853,40 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                 )}
               </div>
 
-              {/* Tagged Mistakes Summary (if any tagged to specific ayat) */}
+              {/* Tagged Mistakes Summary (Daftar Ayat yang telah dikoreksi) */}
               {taggedAyahs.length > 0 && (
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs space-y-2">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-800 flex items-center gap-1.5">
                       <Tag className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Rincian Ayat yang Mengalami Kesalahan ({taggedAyahs.length} catatan):</span>
+                      <span>Rincian Ayat yang Telah Dikoreksi ({taggedAyahs.length} catatan):</span>
                     </span>
-                    <span className="text-[11px] text-slate-500">Klik tanda silang (x) untuk membatalkan</span>
+                    <span className="text-[11px] text-slate-500">Klik tombol (x) untuk membatalkan koreksi</span>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">
-                    {taggedAyahs.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                          tag.type === 'tawaqquf'
-                            ? 'bg-amber-50 text-amber-900 border-amber-300'
-                            : tag.type === 'lahn_jali'
-                            ? 'bg-rose-50 text-rose-900 border-rose-300'
-                            : 'bg-purple-50 text-purple-900 border-purple-300'
-                        }`}
-                      >
-                        <span>Ayat {tag.ayahNumber}: {tag.label}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTag(idx)}
-                          className="hover:opacity-75 cursor-pointer text-slate-500 hover:text-slate-900"
+                    {taggedAyahs.map((tag) => {
+                      const preset = MISTAKE_PRESETS[tag.category];
+                      return (
+                        <span
+                          key={tag.id}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${preset.badgeBg}`}
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
+                          <span>
+                            <strong>Ayat {tag.ayahNumber}:</strong> {preset.shortName}
+                            {tag.detail ? ` (${tag.detail})` : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag.id)}
+                            className="hover:opacity-75 cursor-pointer text-slate-500 hover:text-slate-900 ml-0.5"
+                            title="Hapus koreksi ini"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -618,21 +903,21 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                         key={ayah.numberInSurah}
                         className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all shadow-xs ${
                           ayahMistakes.length > 0
-                            ? 'border-rose-300 bg-rose-50/20'
+                            ? 'border-rose-300 bg-rose-50/15'
                             : 'border-slate-200 hover:border-emerald-300'
                         }`}
                       >
-                        {/* Ayah Number Badge & Audio Action */}
-                        <div className="flex items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-100">
+                        {/* Header bar ayat + tombol koreksi */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-900 font-bold text-xs flex items-center justify-center border border-emerald-300 font-mono">
                               {ayah.numberInSurah}
                             </span>
                             <span className="text-[11px] text-slate-500 font-medium">
-                              Ayat ke-{ayah.numberInSurah}
+                              Ayat {ayah.numberInSurah}
                             </span>
 
-                            {/* Audio tilawah button */}
+                            {/* Audio tilawah */}
                             <button
                               type="button"
                               onClick={() => handlePlayAyah(ayah.numberInSurah)}
@@ -648,32 +933,64 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                             </button>
                           </div>
 
-                          {/* Quick Tagging Buttons for this verse */}
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-slate-400 mr-1 hidden sm:inline font-medium">Tandai Salah:</span>
+                          {/* 5 TOMBOL KOREKSI LENGKAP: MAKHRAJ, TAJWID, MAD, LUPA, HARAKAT */}
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="text-[10px] text-slate-400 mr-1 hidden sm:inline font-semibold">Tandai:</span>
+                            
+                            {/* 1. Makhorijul Huruf */}
+                            <div className="relative inline-block">
+                              <button
+                                type="button"
+                                onClick={() => setPickerModalState({ ayahNumber: ayah.numberInSurah, category: 'makhorijul_huruf' })}
+                                className="px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-900 text-[10px] font-bold border border-blue-200 cursor-pointer transition-colors"
+                                title="Koreksi Makhorijul Huruf (titik bunyi & sifat huruf)"
+                              >
+                                + Makhraj
+                              </button>
+                            </div>
+
+                            {/* 2. Hukum Tajwid */}
+                            <div className="relative inline-block">
+                              <button
+                                type="button"
+                                onClick={() => setPickerModalState({ ayahNumber: ayah.numberInSurah, category: 'hukum_tajwid' })}
+                                className="px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-[10px] font-bold border border-emerald-200 cursor-pointer transition-colors"
+                                title="Koreksi Hukum Tajwid (ghunnah, ikhfa, idgham, iqlab, waqaf)"
+                              >
+                                + Tajwid
+                              </button>
+                            </div>
+
+                            {/* 3. Bacaan Mad */}
+                            <div className="relative inline-block">
+                              <button
+                                type="button"
+                                onClick={() => setPickerModalState({ ayahNumber: ayah.numberInSurah, category: 'bacaan_mad' })}
+                                className="px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-900 text-[10px] font-bold border border-purple-200 cursor-pointer transition-colors"
+                                title="Koreksi Bacaan Mad (panjang pendek, mad thobi'i, mad wajib/jaiz/lazim)"
+                              >
+                                + Mad
+                              </button>
+                            </div>
+
+                            {/* 4. Lupa / Tersendat */}
                             <button
                               type="button"
-                              onClick={() => handleAddMistake(ayah.numberInSurah, 'tawaqquf')}
-                              className="px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-900 text-[10px] font-bold border border-amber-200 cursor-pointer transition-colors"
-                              title="Murid tersendat atau lupa di ayat ini"
+                              onClick={() => handleAddMistake(ayah.numberInSurah, 'tawaqquf', 'Lupa sambungan ayat')}
+                              className="px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-900 text-[10px] font-bold border border-amber-200 cursor-pointer transition-colors"
+                              title="Tersendat atau lupa sambungan ayat"
                             >
                               + Lupa
                             </button>
+
+                            {/* 5. Salah Harakat */}
                             <button
                               type="button"
-                              onClick={() => handleAddMistake(ayah.numberInSurah, 'lahn_jali')}
-                              className="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-900 text-[10px] font-bold border border-rose-200 cursor-pointer transition-colors"
-                              title="Salah harakat atau tertukar huruf"
+                              onClick={() => handleAddMistake(ayah.numberInSurah, 'lahn_jali', 'Salah harakat/kata')}
+                              className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-900 text-[10px] font-bold border border-rose-200 cursor-pointer transition-colors"
+                              title="Salah harakat (fathah/kasrah/dhammah) atau tertukar kata"
                             >
                               + Harakat
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAddMistake(ayah.numberInSurah, 'lahn_khafi')}
-                              className="px-2 py-0.5 rounded bg-purple-50 hover:bg-purple-100 text-purple-900 text-[10px] font-bold border border-purple-200 cursor-pointer transition-colors"
-                              title="Salah tajwid, mad, ghunnah, atau waqaf"
-                            >
-                              + Tajwid
                             </button>
                           </div>
                         </div>
@@ -702,23 +1019,29 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                           </p>
                         )}
 
-                        {/* Tags attached to this verse */}
+                        {/* Badges koreksi spesifik pada ayat ini */}
                         {ayahMistakes.length > 0 && (
-                          <div className="mt-2.5 pt-2 border-t border-rose-200 flex flex-wrap gap-1">
-                            {ayahMistakes.map((m, i) => (
-                              <span
-                                key={i}
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                                  m.type === 'tawaqquf'
-                                    ? 'bg-amber-100 text-amber-900'
-                                    : m.type === 'lahn_jali'
-                                    ? 'bg-rose-100 text-rose-900'
-                                    : 'bg-purple-100 text-purple-900'
-                                }`}
-                              >
-                                ● {m.label}
-                              </span>
-                            ))}
+                          <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-500 mr-1">Koreksi ayat ini:</span>
+                            {ayahMistakes.map((m) => {
+                              const preset = MISTAKE_PRESETS[m.category];
+                              return (
+                                <span
+                                  key={m.id}
+                                  className={`text-[10.5px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border ${preset.badgeBg}`}
+                                >
+                                  <span>● {preset.shortName}: {m.detail || preset.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(m.id)}
+                                    className="hover:opacity-75 cursor-pointer ml-0.5"
+                                    title="Hapus koreksi ini"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -729,7 +1052,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
 
               {/* VIEW MODE 2: CONTINUOUS MUSHAF TEXT */}
               {displayMode === 'mushaf' && (
-                <div className="bg-amber-50/40 border-2 border-amber-900/20 rounded-3xl p-6 sm:p-8 shadow-sm">
+                <div className="bg-amber-50/40 border-2 border-amber-900/20 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
                   <div
                     dir="rtl"
                     className={`font-serif text-justify text-slate-900 leading-[2.5] tracking-wide ${
@@ -741,15 +1064,20 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                     }`}
                   >
                     {visibleAyahs.map((ayah) => {
-                      const hasMistake = taggedAyahs.some((t) => t.ayahNumber === ayah.numberInSurah);
+                      const ayahMistakes = taggedAyahs.filter((t) => t.ayahNumber === ayah.numberInSurah);
+                      const isSelected = selectedMushafAyah === ayah.numberInSurah;
                       return (
                         <span
                           key={ayah.numberInSurah}
-                          onClick={() => handleAddMistake(ayah.numberInSurah, 'tawaqquf')}
+                          onClick={() => setSelectedMushafAyah(ayah.numberInSurah)}
                           className={`inline cursor-pointer px-1 rounded transition-colors ${
-                            hasMistake ? 'bg-rose-200/70 text-rose-950 font-bold' : 'hover:bg-amber-200/50'
+                            ayahMistakes.length > 0
+                              ? 'bg-rose-200/70 text-rose-950 font-bold'
+                              : isSelected
+                              ? 'bg-emerald-200/70 text-emerald-950'
+                              : 'hover:bg-amber-200/50'
                           }`}
-                          title={`Klik untuk menandai kesalahan pada Ayat ${ayah.numberInSurah}`}
+                          title={`Klik untuk mengoreksi Ayat ${ayah.numberInSurah}`}
                         >
                           {ayah.text}{' '}
                           <span className="inline-block text-emerald-800 text-base sm:text-lg font-mono font-bold mx-1 text-center align-middle">
@@ -759,11 +1087,187 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                       );
                     })}
                   </div>
-                  <div className="mt-4 text-[11px] text-slate-500 text-center font-sans">
-                    Tip: Klik pada ayat mana saja di atas untuk langsung menandai kesalahan.
+
+                  {/* Floating Action Bar untuk Ayat yang dipilih di Mode Mushaf */}
+                  {selectedMushafAyah && (
+                    <div className="p-3 bg-white rounded-xl border border-emerald-300 shadow-md flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-150">
+                      <span className="font-bold text-xs text-slate-800">
+                        Koreksi Ayat ke-{selectedMushafAyah}:
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleAddMistake(selectedMushafAyah, 'makhorijul_huruf', 'Ketelitian makhraj huruf')}
+                          className="px-2.5 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold rounded-lg cursor-pointer"
+                        >
+                          + Makhorijul Huruf
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddMistake(selectedMushafAyah, 'hukum_tajwid', 'Kaidah hukum tajwid')}
+                          className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg cursor-pointer"
+                        >
+                          + Hukum Tajwid
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddMistake(selectedMushafAyah, 'bacaan_mad', 'Disiplin mad 2 harakat')}
+                          className="px-2.5 py-1 bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold rounded-lg cursor-pointer"
+                        >
+                          + Bacaan Mad
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddMistake(selectedMushafAyah, 'tawaqquf', 'Tersendat/Lupa')}
+                          className="px-2.5 py-1 bg-amber-700 hover:bg-amber-600 text-white text-xs font-bold rounded-lg cursor-pointer"
+                        >
+                          + Lupa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddMistake(selectedMushafAyah, 'lahn_jali', 'Salah harakat/kata')}
+                          className="px-2.5 py-1 bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold rounded-lg cursor-pointer"
+                        >
+                          + Harakat
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMushafAyah(null)}
+                          className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] text-slate-500 text-center font-sans">
+                    Tip: Klik pada ayat mana saja di atas untuk langsung membuka menu koreksi Makhorijul Huruf, Hukum Tajwid, atau Bacaan Mad.
                   </div>
                 </div>
               )}
+
+              {/* PANEL EVALUASI & CATATAN KESALAHAN TASMI' SESUAI PERMINTAAN USER */}
+              <div className="bg-gradient-to-br from-white via-slate-50 to-emerald-50/50 border border-emerald-300/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                      <Sparkles className="w-4 h-4 text-emerald-200" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span>Evaluasi & Catatan Kesalahan Tasmi'</span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full font-semibold border border-emerald-300">
+                          {taggedAyahs.length} Koreksi
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Hasil analisis koreksi Makhorijul Huruf, Hukum Tajwid, Bacaan Mad, dan rekomendasi hafalan.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateSmartNotes}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
+                    title="Perbarui catatan evaluasi otomatis berdasarkan ayat yang baru dikoreksi"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Generate Catatan Otomatis</span>
+                  </button>
+                </div>
+
+                {/* Ringkasan 5 Statistik Kategori Koreksi */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                  {/* 1. Makhorijul Huruf */}
+                  <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-center shadow-2xs">
+                    <span className="text-[10px] text-blue-800 font-extrabold block uppercase tracking-tight">Makhorijul Huruf</span>
+                    <span className="text-xl font-extrabold text-blue-950 font-mono my-0.5 block">{makhorijulHurufCount}</span>
+                    <span className="text-[9px] text-blue-600 block">(-1 per koreksi)</span>
+                  </div>
+                  {/* 2. Hukum Tajwid */}
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center shadow-2xs">
+                    <span className="text-[10px] text-emerald-800 font-extrabold block uppercase tracking-tight">Hukum Tajwid</span>
+                    <span className="text-xl font-extrabold text-emerald-950 font-mono my-0.5 block">{hukumTajwidCount}</span>
+                    <span className="text-[9px] text-emerald-600 block">(-0.75 per koreksi)</span>
+                  </div>
+                  {/* 3. Bacaan Mad */}
+                  <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-xl text-center shadow-2xs">
+                    <span className="text-[10px] text-purple-800 font-extrabold block uppercase tracking-tight">Bacaan Mad</span>
+                    <span className="text-xl font-extrabold text-purple-950 font-mono my-0.5 block">{bacaanMadCount}</span>
+                    <span className="text-[9px] text-purple-600 block">(-0.75 per koreksi)</span>
+                  </div>
+                  {/* 4. Lupa / Tersendat */}
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center shadow-2xs">
+                    <span className="text-[10px] text-amber-800 font-extrabold block uppercase tracking-tight">Lupa / Tersendat</span>
+                    <span className="text-xl font-extrabold text-amber-950 font-mono my-0.5 block">{tawaqqufCount}</span>
+                    <span className="text-[9px] text-amber-600 block">(-2 per koreksi)</span>
+                  </div>
+                  {/* 5. Salah Harakat */}
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-center shadow-2xs col-span-2 sm:col-span-1">
+                    <span className="text-[10px] text-rose-800 font-extrabold block uppercase tracking-tight">Salah Harakat</span>
+                    <span className="text-xl font-extrabold text-rose-950 font-mono my-0.5 block">{lahnJaliCount}</span>
+                    <span className="text-[9px] text-rose-600 block">(-1.5 per koreksi)</span>
+                  </div>
+                </div>
+
+                {/* Textarea Catatan Evaluasi Pembimbing */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                    <label className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Catatan Evaluasi Pembimbing untuk Santri:</span>
+                    </label>
+                    <span className="text-[11px] font-semibold text-emerald-800">
+                      Tersimpan ke Riwayat & Rapot Santri
+                    </span>
+                  </div>
+                  
+                  <textarea
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Catatan evaluasi bimbingan santri (otomatis terisi dari ayat yang dikoreksi)..."
+                    className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:ring-2 focus:ring-emerald-700 focus:outline-none leading-relaxed shadow-2xs"
+                  />
+
+                  {/* Preset Rekomendasi Cepat */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
+                    <span className="text-slate-500 font-medium">Saran Cepat:</span>
+                    <button
+                      type="button"
+                      onClick={() => appendRecommendation("Perbanyak latihan makhraj huruf halaq (tenggorokan) dan lisan (lidah).")}
+                      className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100 cursor-pointer"
+                    >
+                      + Latihan Makhraj
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => appendRecommendation("Fokus pada kesempurnaan dengung ghunnah 2 harakat dan kejelasan hukum ikhfa.")}
+                      className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 cursor-pointer"
+                    >
+                      + Latihan Tajwid
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => appendRecommendation("Disiplin mad thobi'i tepat 2 ketukan dan hindari menyeret harakat pendek.")}
+                      className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100 cursor-pointer"
+                    >
+                      + Disiplin Mad 2 Harakat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => appendRecommendation("Simakan mandiri berpasangan sebelum maju setoran berikutnya.")}
+                      className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 cursor-pointer"
+                    >
+                      + Muroja'ah Berpasangan
+                    </button>
+                  </div>
+                </div>
+
+              </div>
 
             </div>
           ) : null}
@@ -771,28 +1275,23 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
         </div>
 
         {/* Bottom Submission Bar */}
-        <div className="bg-white border-t border-slate-200 px-4 sm:px-6 py-3 shrink-0 flex flex-col md:flex-row items-center justify-between gap-3 shadow-lg">
-          
-          {/* Notes Input Field */}
-          <div className="w-full md:w-1/2 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="Catatan bimbingan untuk santri (otomatis terisi dari ayat salah)..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:ring-2 focus:ring-emerald-700"
-            />
+        <div className="bg-white border-t border-slate-200 px-4 sm:px-6 py-3 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+          <div className="text-xs text-slate-600 flex items-center gap-2">
+            <span>Hasil Tasmi':</span>
+            <strong className="text-emerald-950 font-bold text-sm">Nilai {activeScore} ({currentPredicate})</strong>
+            <span>•</span>
+            <span className={isMutqin ? "text-emerald-700 font-bold" : "text-amber-700 font-bold"}>
+              {isMutqin ? "✓ Mutqin (Lulus)" : "⚠ Perlu Muroja'ah"}
+            </span>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             >
-              Tutup
+              Batal
             </button>
 
             <button
@@ -801,13 +1300,77 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-700 rounded-xl shadow-md transition-colors cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Simpan Nilai & Selesaikan Simakan ({activeScore})</span>
+              <span>Simpan Nilai & Selesaikan Tasmi'</span>
             </button>
           </div>
-
         </div>
 
       </div>
+
+      {/* MODAL PICKER SUB-KESALAHAN SPESIFIK */}
+      {pickerModalState && (
+        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in duration-100">
+          <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-5 shadow-2xl space-y-3.5 border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full ${
+                  pickerModalState.category === 'makhorijul_huruf' ? 'bg-blue-600' :
+                  pickerModalState.category === 'hukum_tajwid' ? 'bg-emerald-600' : 'bg-purple-600'
+                }`} />
+                <h4 className="font-bold text-sm text-slate-900">
+                  Pilih Rincian {MISTAKE_PRESETS[pickerModalState.category].name} (Ayat {pickerModalState.ayahNumber})
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPickerModalState(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Default Add Button */}
+            <button
+              type="button"
+              onClick={() => handleAddMistake(pickerModalState.ayahNumber, pickerModalState.category)}
+              className="w-full text-left p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-800 transition-colors flex items-center justify-between"
+            >
+              <span>+ Tambah Koreksi Umum ({MISTAKE_PRESETS[pickerModalState.category].name})</span>
+              <span className="text-[10px] text-slate-400">Default</span>
+            </button>
+
+            {/* Subtypes List */}
+            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-tight block px-1">
+                Atau pilih rincian kesalahan spesifik:
+              </span>
+              {MISTAKE_PRESETS[pickerModalState.category].subtypes.map((sub, sIdx) => (
+                <button
+                  key={sIdx}
+                  type="button"
+                  onClick={() => handleAddMistake(pickerModalState.ayahNumber, pickerModalState.category, sub)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between cursor-pointer ${MISTAKE_PRESETS[pickerModalState.category].chipBg}`}
+                >
+                  <span>{sub}</span>
+                  <Check className="w-3.5 h-3.5 opacity-60" />
+                </button>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPickerModalState(null)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

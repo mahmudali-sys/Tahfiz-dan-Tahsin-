@@ -25,6 +25,7 @@ import {
   parseDateString,
   toIsoDate
 } from './IndonesianDatePicker';
+import { QuranSimakanModal } from './QuranSimakanModal';
 
 interface AttendanceAndHafalanModalProps {
   isOpen: boolean;
@@ -131,6 +132,19 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
     'Ust. Mahmud Ali Yafi, S.S, M.Pd.I.';
   const [examinerName, setExaminerName] = useState<string>(effectiveTeacherName);
   const [hafalanNotes, setHafalanNotes] = useState<string>('Lancar, makhraj dan tajwid baik.');
+  const [isQuranSimakanOpen, setIsQuranSimakanOpen] = useState<boolean>(false);
+
+  const handleTasmiSimakanResult = (rec: TahfizSurahRecord) => {
+    setSelectedSurahNumber(rec.surahNumber);
+    setAyatFrom(rec.ayatFrom);
+    setAyatTo(rec.ayatTo);
+    setGradeScore(rec.gradeScore);
+    setIsMutqin(rec.isMutqin);
+    if (rec.notes) {
+      setHafalanNotes(rec.notes);
+    }
+    setIsQuranSimakanOpen(false);
+  };
 
   // When selected student changes, update defaults
   useEffect(() => {
@@ -540,6 +554,29 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
                         </button>
                       ))}
                     </div>
+
+                    {/* Banner Shortcut ke Layar Koreksi Tasmi' */}
+                    {setoranType === 'Tasmi' && (
+                      <div className="p-3 bg-gradient-to-r from-emerald-900 to-teal-900 rounded-xl text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm border border-emerald-700 mt-2.5">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-200">
+                            <Sparkles className="w-4 h-4 text-amber-300" />
+                            <span>Layar Koreksi & Evaluasi Tasmi' Al-Qur'an</span>
+                          </div>
+                          <p className="text-[11px] text-emerald-100 leading-snug">
+                            Buka mushaf Al-Qur'an untuk menyimak, koreksi Makhorijul Huruf, Hukum Tajwid, & Bacaan Mad, serta evaluasi otomatis.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsQuranSimakanOpen(true)}
+                          className="shrink-0 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <BookOpen className="w-4 h-4" />
+                          <span>Buka Layar Tasmi'</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -784,6 +821,18 @@ export const AttendanceAndHafalanModal: React.FC<AttendanceAndHafalanModalProps>
           </div>
         </form>
       </div>
+
+      {/* Layar Koreksi & Evaluasi Tasmi' Al-Qur'an Modal */}
+      {isQuranSimakanOpen && selectedStudent && (
+        <QuranSimakanModal
+          isOpen={isQuranSimakanOpen}
+          onClose={() => setIsQuranSimakanOpen(false)}
+          student={selectedStudent}
+          teacherName={examinerName}
+          onSaveTahfizResult={handleTasmiSimakanResult}
+          initialSurahNumber={selectedSurahNumber}
+        />
+      )}
     </div>
   );
 };
