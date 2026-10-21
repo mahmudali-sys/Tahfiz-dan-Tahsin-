@@ -22,15 +22,14 @@ import {
   AlertCircle,
   Info,
   ChevronDown,
-  MousePointerClick,
-  SlidersHorizontal,
-  Flame
+  Layers,
+  ListPlus
 } from 'lucide-react';
-import { Student, TahfizSurahRecord } from '../types';
+import { Student, TahfizSurahRecord, SchoolSettings, StudentReportData } from '../types';
 import { formatToIndonesianDate } from './IndonesianDatePicker';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { getSurahDetail, SurahDetail, AyahData } from '../utils/quranService';
-import { analyzeArabicWord, DetectedWordMistake } from '../utils/tajwidAnalyzer';
+import { SertifikatTahfizModal } from './SertifikatTahfizModal';
 
 export type MistakeCategory = 
   | 'makhorijul_huruf' 
@@ -42,8 +41,6 @@ export type MistakeCategory =
 export interface AyahMistakeTag {
   id: string;
   ayahNumber: number;
-  wordIndex?: number;
-  wordText?: string;
   category: MistakeCategory;
   label: string;
   detail?: string;
@@ -59,6 +56,7 @@ export const MISTAKE_PRESETS: Record<
     textColor: string;
     borderColor: string;
     btnBg: string;
+    deduction: number;
     subtypes: string[];
   }
 > = {
@@ -70,6 +68,7 @@ export const MISTAKE_PRESETS: Record<
     textColor: 'text-blue-700',
     borderColor: 'border-blue-300',
     btnBg: 'bg-blue-700 hover:bg-blue-600 text-white',
+    deduction: 1.0,
     subtypes: [
       "Huruf 'Ain (ع) & Hamzah (أ)",
       "Huruf Ha (ح) & Ha' (هـ)",
@@ -81,7 +80,7 @@ export const MISTAKE_PRESETS: Record<
       "Huruf Dzal (ذ) & Zay (ز)",
       "Huruf Qaf (ق) & Kaf (ك)",
       "Tafkhim Huruf Tebal (Isti'la')",
-      "Sifat Huruf (Hams, Shafir, Qalqalah)",
+      "Sifat Huruf (Hams, Shafir, Istithalah)",
     ],
   },
   hukum_tajwid: {
@@ -92,6 +91,7 @@ export const MISTAKE_PRESETS: Record<
     textColor: 'text-emerald-700',
     borderColor: 'border-emerald-300',
     btnBg: 'bg-emerald-700 hover:bg-emerald-600 text-white',
+    deduction: 0.75,
     subtypes: [
       "Ghunnah (Nun/Mim Bertasydid 2 Harakat)",
       "Ikhfa Hakiki (Kurang Samar / Dengung)",
@@ -112,6 +112,7 @@ export const MISTAKE_PRESETS: Record<
     textColor: 'text-purple-700',
     borderColor: 'border-purple-300',
     btnBg: 'bg-purple-700 hover:bg-purple-600 text-white',
+    deduction: 0.75,
     subtypes: [
       "Mad Thobi'i Kurang 2 Harakat (Terbaca Pendek)",
       "Mad Thobi'i Terlalu Panjang (> 2 Harakat)",
@@ -130,6 +131,7 @@ export const MISTAKE_PRESETS: Record<
     textColor: 'text-amber-700',
     borderColor: 'border-amber-300',
     btnBg: 'bg-amber-700 hover:bg-amber-600 text-white',
+    deduction: 2.0,
     subtypes: [
       "Lupa Sambungan Ayat (Perlu Talqin)",
       "Tersendat > 3 Detik",
@@ -144,6 +146,7 @@ export const MISTAKE_PRESETS: Record<
     textColor: 'text-rose-700',
     borderColor: 'border-rose-300',
     btnBg: 'bg-rose-700 hover:bg-rose-600 text-white',
+    deduction: 1.5,
     subtypes: [
       "Fathah / Kasrah / Dhammah Tertukar",
       "Sukun Terbaca Hidup",
@@ -153,7 +156,7 @@ export const MISTAKE_PRESETS: Record<
 };
 
 /**
- * Generator Catatan Evaluasi Kesalahan Otomatis
+ * Generator Catatan Evaluasi Kesalahan Otomatis Berdasarkan Jenis Kesalahan
  */
 export function generateTasmiEvaluationNotes(
   surahName: string,
@@ -162,49 +165,62 @@ export function generateTasmiEvaluationNotes(
   score: number,
   predicate: string,
   isMutqin: boolean,
-  tags: AyahMistakeTag[]
+  tags: AyahMistakeTag[],
+  counts?: {
+    makhraj: number;
+    tajwid: number;
+    mad: number;
+    tawaqquf: number;
+    lahnJali: number;
+  }
 ): string {
-  if (tags.length === 0) {
+  const makhrajCount = counts?.makhraj ?? tags.filter((t) => t.category === 'makhorijul_huruf').length;
+  const tajwidCount = counts?.tajwid ?? tags.filter((t) => t.category === 'hukum_tajwid').length;
+  const madCount = counts?.mad ?? tags.filter((t) => t.category === 'bacaan_mad').length;
+  const tawaqqufCount = counts?.tawaqquf ?? tags.filter((t) => t.category === 'tawaqquf').length;
+  const lahnJaliCount = counts?.lahnJali ?? tags.filter((t) => t.category === 'lahn_jali').length;
+
+  const totalMistakes = makhrajCount + tajwidCount + madCount + tawaqqufCount + lahnJaliCount;
+
+  if (totalMistakes === 0) {
     return `Evaluasi Tasmi' ${surahName} (Ayat ${ayatFrom}-${ayatTo}): Alhamdulillah bacaan sangat mutqin (Nilai: ${score}, Predikat: ${predicate}). Makharijul huruf fasih, kaidah hukum tajwid tepat, dan panjang pendek mad terjaga sangat tertib.`;
   }
 
-  const makhraj = tags.filter((t) => t.category === 'makhorijul_huruf');
-  const tajwid = tags.filter((t) => t.category === 'hukum_tajwid');
-  const mad = tags.filter((t) => t.category === 'bacaan_mad');
-  const tawaqquf = tags.filter((t) => t.category === 'tawaqquf');
-  const lahnJali = tags.filter((t) => t.category === 'lahn_jali');
-
   const statsParts: string[] = [];
-  if (makhraj.length > 0) statsParts.push(`${makhraj.length}x Makhorijul Huruf`);
-  if (tajwid.length > 0) statsParts.push(`${tajwid.length}x Hukum Tajwid`);
-  if (mad.length > 0) statsParts.push(`${mad.length}x Bacaan Mad`);
-  if (tawaqquf.length > 0) statsParts.push(`${tawaqquf.length}x Lupa/Tersendat`);
-  if (lahnJali.length > 0) statsParts.push(`${lahnJali.length}x Salah Harakat`);
+  if (makhrajCount > 0) statsParts.push(`${makhrajCount}x Makhorijul Huruf`);
+  if (tajwidCount > 0) statsParts.push(`${tajwidCount}x Hukum Tajwid`);
+  if (madCount > 0) statsParts.push(`${madCount}x Bacaan Mad`);
+  if (tawaqqufCount > 0) statsParts.push(`${tawaqqufCount}x Lupa/Tersendat`);
+  if (lahnJaliCount > 0) statsParts.push(`${lahnJaliCount}x Salah Harakat`);
 
-  const verseDetails = tags.map((t) => {
-    const wordPrefix = t.wordText ? ` pada kata "${t.wordText}"` : '';
-    const detailText = t.detail ? ` (${t.detail})` : '';
-    return `Ayat ${t.ayahNumber}${wordPrefix}: ${MISTAKE_PRESETS[t.category].name}${detailText}`;
-  }).join('; ');
-
-  const recommendations: string[] = [];
-  if (makhraj.length > 0) {
-    recommendations.push("Pertajam ketelitian bunyi makhraj huruf (khususnya huruf halaq dan lisan pada ayat yang dikoreksi)");
+  // Rincian ayat jika ada tag spesifik
+  let verseDetails = '';
+  if (tags.length > 0) {
+    verseDetails = ' Catatan Ayat: ' + tags.map((t) => {
+      const detailText = t.detail ? ` (${t.detail})` : '';
+      return `Ayat ${t.ayahNumber}: ${MISTAKE_PRESETS[t.category].name}${detailText}`;
+    }).join('; ') + '.';
   }
-  if (tajwid.length > 0) {
+
+  // Rekomendasi pedagogis terarah
+  const recommendations: string[] = [];
+  if (makhrajCount > 0) {
+    recommendations.push("Pertajam ketelitian bunyi makhraj huruf (khususnya huruf halaq dan lisan pada ayat yang dicatat)");
+  }
+  if (tajwidCount > 0) {
     recommendations.push("Jaga kesempurnaan dengung ghunnah 2 harakat dan kejelasan hukum nun/mim sukun");
   }
-  if (mad.length > 0) {
+  if (madCount > 0) {
     recommendations.push("Disiplin panjang mad thobi'i tepat 2 harakat dan hindari menyeret harakat pendek 1 ketukan");
   }
-  if (tawaqquf.length > 0) {
+  if (tawaqqufCount > 0) {
     recommendations.push("Perbanyak simakan muroja'ah berpasangan untuk menguatkan kelancaran sambung ayat");
   }
 
   const adviceText = recommendations.length > 0 ? ` Saran: ${recommendations.join('. ')}.` : '';
   const statusText = isMutqin ? 'Lulus / Mutqin' : 'Perlu Pengulangan Muroja\'ah';
 
-  return `Evaluasi Tasmi' ${surahName} (Ayat ${ayatFrom}-${ayatTo}) [${statusText} - Nilai: ${score} (${predicate})]. Rekap Koreksi: ${statsParts.join(', ')}. Rincian Koreksi: ${verseDetails}.${adviceText}`;
+  return `Evaluasi Tasmi' ${surahName} (Ayat ${ayatFrom}-${ayatTo}) [${statusText} - Nilai: ${score} (${predicate})]. Rekap Kesalahan: ${statsParts.join(', ')}.${verseDetails}${adviceText}`;
 }
 
 interface QuranSimakanModalProps {
@@ -214,6 +230,8 @@ interface QuranSimakanModalProps {
   teacherName: string;
   onSaveTahfizResult: (newRecord: TahfizSurahRecord) => void;
   initialSurahNumber?: number;
+  settings?: SchoolSettings;
+  report?: StudentReportData;
 }
 
 export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
@@ -223,6 +241,8 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
   teacherName,
   onSaveTahfizResult,
   initialSurahNumber,
+  settings,
+  report,
 }) => {
   if (!isOpen) return null;
 
@@ -235,40 +255,23 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
   const [ayatFrom, setAyatFrom] = useState<number>(1);
   const [ayatTo, setAyatTo] = useState<number>(1);
 
-  // 5 Counter Kesalahan Tasmi'
+  // 5 Counter Kesalahan Tasmi' (Makhorijul Huruf, Hukum Tajwid, Bacaan Mad, Lupa, Harakat)
   const [makhorijulHurufCount, setMakhorijulHurufCount] = useState<number>(0);
   const [hukumTajwidCount, setHukumTajwidCount] = useState<number>(0);
   const [bacaanMadCount, setBacaanMadCount] = useState<number>(0);
   const [tawaqqufCount, setTawaqqufCount] = useState<number>(0);
   const [lahnJaliCount, setLahnJaliCount] = useState<number>(0);
 
-  // Rincian ayat yang dikoreksi (termasuk wordIndex & wordText)
+  // Rincian ayat yang dikoreksi (berdasarkan ayat dan kesalahan, TIDAK PERKATA)
   const [taggedAyahs, setTaggedAyahs] = useState<AyahMistakeTag[]>([]);
 
-  // Popover Kata Interaktif Cerdas
-  const [activeWordPopup, setActiveWordPopup] = useState<{
-    ayahNumber: number;
-    wordIndex: number;
-    wordText: string;
-    detectedMistakes: DetectedWordMistake[];
-    existingTag?: AyahMistakeTag;
-  } | null>(null);
-
-  // Subtype Picker Modal untuk tombol level ayat
+  // Subtype Picker Modal untuk memilih rincian kesalahan
   const [pickerModalState, setPickerModalState] = useState<{
     ayahNumber: number;
     category: MistakeCategory;
   } | null>(null);
-
-  // Live Toast Notification saat sebuah kata dikoreksi
-  const [liveCorrectionAlert, setLiveCorrectionAlert] = useState<{
-    word: string;
-    ayahNumber: number;
-    ruleName: string;
-    deduction: number;
-    newScore: number;
-    predicate: string;
-  } | null>(null);
+  const [customDetailText, setCustomDetailText] = useState<string>('');
+  const [isCertModalOpen, setIsCertModalOpen] = useState<boolean>(false);
 
   // Score override & Mutqin & Tanggal Setoran Hafalan
   const [manualScore, setManualScore] = useState<number | null>(null);
@@ -306,7 +309,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     };
   }, [selectedSurahNumber]);
 
-  // Kalkulasi Skor Otomatis Berdasarkan Koreksi
+  // Kalkulasi Skor Otomatis Berdasarkan Jumlah Kesalahan
   const calculatedScore = useMemo(() => {
     const raw = 100 -
       (tawaqqufCount * 2.0) -
@@ -329,108 +332,8 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     }
   }, [activeScore, tawaqqufCount]);
 
-  // Handler Klik Kata Arab: Menganalisis kata secara cerdas seketika
-  const handleWordClick = (ayahNumber: number, wordIndex: number, wordText: string) => {
-    const existingTag = taggedAyahs.find(
-      (t) => t.ayahNumber === ayahNumber && t.wordIndex === wordIndex
-    );
-    const detected = analyzeArabicWord(wordText);
-    setActiveWordPopup({
-      ayahNumber,
-      wordIndex,
-      wordText,
-      detectedMistakes: detected,
-      existingTag,
-    });
-  };
-
-  // Terapkan Koreksi Kata Terpilih Langsung Menghitung Nilai
-  const handleApplyWordMistake = (
-    ayahNumber: number,
-    wordIndex: number,
-    wordText: string,
-    category: MistakeCategory,
-    detail: string,
-    deduction: number,
-    ruleName: string
-  ) => {
-    // Jika kata ini sebelumnya sudah punya tag, kurangi counter lama
-    const existing = taggedAyahs.find(
-      (t) => t.ayahNumber === ayahNumber && t.wordIndex === wordIndex
-    );
-    if (existing) {
-      if (existing.category === 'makhorijul_huruf') setMakhorijulHurufCount((v) => Math.max(0, v - 1));
-      if (existing.category === 'hukum_tajwid') setHukumTajwidCount((v) => Math.max(0, v - 1));
-      if (existing.category === 'bacaan_mad') setBacaanMadCount((v) => Math.max(0, v - 1));
-      if (existing.category === 'tawaqquf') setTawaqqufCount((v) => Math.max(0, v - 1));
-      if (existing.category === 'lahn_jali') setLahnJaliCount((v) => Math.max(0, v - 1));
-    }
-
-    const preset = MISTAKE_PRESETS[category];
-    const newTag: AyahMistakeTag = {
-      id: `tag-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-      ayahNumber,
-      wordIndex,
-      wordText,
-      category,
-      label: preset.name,
-      detail,
-    };
-
-    const remainingTags = taggedAyahs.filter(
-      (t) => !(t.ayahNumber === ayahNumber && t.wordIndex === wordIndex)
-    );
-    const updatedTags = [...remainingTags, newTag];
-    setTaggedAyahs(updatedTags);
-
-    // Tambah counter baru
-    if (category === 'makhorijul_huruf') setMakhorijulHurufCount((v) => v + 1);
-    if (category === 'hukum_tajwid') setHukumTajwidCount((v) => v + 1);
-    if (category === 'bacaan_mad') setBacaanMadCount((v) => v + 1);
-    if (category === 'tawaqquf') setTawaqqufCount((v) => v + 1);
-    if (category === 'lahn_jali') setLahnJaliCount((v) => v + 1);
-
-    // Hitung skor instan untuk notifikasi live
-    const newScoreCalc = Math.max(
-      50,
-      Math.round(
-        (activeScore - (existing ? 0 : deduction)) * 10
-      ) / 10
-    );
-    const newPred = getPredicate(newScoreCalc);
-
-    // Tampilkan Toast Notifikasi Live Nilai dan Koreksian
-    setLiveCorrectionAlert({
-      word: wordText,
-      ayahNumber,
-      ruleName,
-      deduction,
-      newScore: newScoreCalc,
-      predicate: newPred,
-    });
-    setTimeout(() => {
-      setLiveCorrectionAlert(null);
-    }, 4500);
-
-    // Perbarui catatan evaluasi otomatis secara langsung
-    if (surahDetail) {
-      const generated = generateTasmiEvaluationNotes(
-        surahDetail.name,
-        ayatFrom,
-        ayatTo,
-        newScoreCalc,
-        newPred,
-        newScoreCalc >= 80,
-        updatedTags
-      );
-      setNotes(generated);
-    }
-
-    setActiveWordPopup(null);
-  };
-
-  // Tambahkan koreksi kesalahan umum per ayat
-  const handleAddAyahLevelMistake = (ayahNumber: number, category: MistakeCategory, specificDetail?: string) => {
+  // Tambahkan koreksi kesalahan (pada ayat tertentu)
+  const handleAddAyahMistake = (ayahNumber: number, category: MistakeCategory, specificDetail?: string) => {
     const preset = MISTAKE_PRESETS[category];
     const newTag: AyahMistakeTag = {
       id: `tag-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
@@ -443,21 +346,36 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     const updatedTags = [...taggedAyahs, newTag];
     setTaggedAyahs(updatedTags);
 
-    if (category === 'makhorijul_huruf') setMakhorijulHurufCount((v) => v + 1);
-    if (category === 'hukum_tajwid') setHukumTajwidCount((v) => v + 1);
-    if (category === 'bacaan_mad') setBacaanMadCount((v) => v + 1);
-    if (category === 'tawaqquf') setTawaqqufCount((v) => v + 1);
-    if (category === 'lahn_jali') setLahnJaliCount((v) => v + 1);
+    let makhraj = makhorijulHurufCount;
+    let tajwid = hukumTajwidCount;
+    let mad = bacaanMadCount;
+    let tawaqquf = tawaqqufCount;
+    let lahnJali = lahnJaliCount;
 
+    if (category === 'makhorijul_huruf') { makhraj++; setMakhorijulHurufCount(makhraj); }
+    if (category === 'hukum_tajwid') { tajwid++; setHukumTajwidCount(tajwid); }
+    if (category === 'bacaan_mad') { mad++; setBacaanMadCount(mad); }
+    if (category === 'tawaqquf') { tawaqquf++; setTawaqqufCount(tawaqquf); }
+    if (category === 'lahn_jali') { lahnJali++; setLahnJaliCount(lahnJali); }
+
+    // Hitung skor baru
+    const newScoreCalc = Math.max(
+      50,
+      Math.round((100 - (tawaqquf * 2.0) - (lahnJali * 1.5) - (makhraj * 1.0) - (tajwid * 0.75) - (mad * 0.75)) * 10) / 10
+    );
+    const newPred = getPredicate(newScoreCalc);
+
+    // Update catatan evaluasi otomatis
     if (surahDetail) {
       const generated = generateTasmiEvaluationNotes(
         surahDetail.name,
         ayatFrom,
         ayatTo,
-        activeScore,
-        currentPredicate,
-        isMutqin,
-        updatedTags
+        newScoreCalc,
+        newPred,
+        newScoreCalc >= 80,
+        updatedTags,
+        { makhraj, tajwid, mad, tawaqquf, lahnJali }
       );
       setNotes(generated);
     }
@@ -465,35 +383,79 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     setPickerModalState(null);
   };
 
-  // Hapus koreksi
-  const handleRemoveTag = (tagId: string) => {
-    const item = taggedAyahs.find((t) => t.id === tagId);
-    if (!item) return;
+  // Tambahkan koreksi umum sesi (tanpa nomor ayat spesifik)
+  const handleAddGeneralMistake = (category: MistakeCategory, specificDetail?: string) => {
+    let makhraj = makhorijulHurufCount;
+    let tajwid = hukumTajwidCount;
+    let mad = bacaanMadCount;
+    let tawaqquf = tawaqqufCount;
+    let lahnJali = lahnJaliCount;
 
-    if (item.category === 'makhorijul_huruf') setMakhorijulHurufCount((v) => Math.max(0, v - 1));
-    if (item.category === 'hukum_tajwid') setHukumTajwidCount((v) => Math.max(0, v - 1));
-    if (item.category === 'bacaan_mad') setBacaanMadCount((v) => Math.max(0, v - 1));
-    if (item.category === 'tawaqquf') setTawaqqufCount((v) => Math.max(0, v - 1));
-    if (item.category === 'lahn_jali') setLahnJaliCount((v) => Math.max(0, v - 1));
+    if (category === 'makhorijul_huruf') { makhraj++; setMakhorijulHurufCount(makhraj); }
+    if (category === 'hukum_tajwid') { tajwid++; setHukumTajwidCount(tajwid); }
+    if (category === 'bacaan_mad') { mad++; setBacaanMadCount(mad); }
+    if (category === 'tawaqquf') { tawaqquf++; setTawaqqufCount(tawaqquf); }
+    if (category === 'lahn_jali') { lahnJali++; setLahnJaliCount(lahnJali); }
 
-    const updatedTags = taggedAyahs.filter((t) => t.id !== tagId);
-    setTaggedAyahs(updatedTags);
+    const newScoreCalc = Math.max(
+      50,
+      Math.round((100 - (tawaqquf * 2.0) - (lahnJali * 1.5) - (makhraj * 1.0) - (tajwid * 0.75) - (mad * 0.75)) * 10) / 10
+    );
+    const newPred = getPredicate(newScoreCalc);
 
     if (surahDetail) {
       const generated = generateTasmiEvaluationNotes(
         surahDetail.name,
         ayatFrom,
         ayatTo,
-        activeScore,
-        currentPredicate,
-        isMutqin,
-        updatedTags
+        newScoreCalc,
+        newPred,
+        newScoreCalc >= 80,
+        taggedAyahs,
+        { makhraj, tajwid, mad, tawaqquf, lahnJali }
       );
       setNotes(generated);
     }
+  };
 
-    if (activeWordPopup && activeWordPopup.existingTag?.id === tagId) {
-      setActiveWordPopup(null);
+  // Hapus koreksi
+  const handleRemoveTag = (tagId: string) => {
+    const item = taggedAyahs.find((t) => t.id === tagId);
+    if (!item) return;
+
+    let makhraj = makhorijulHurufCount;
+    let tajwid = hukumTajwidCount;
+    let mad = bacaanMadCount;
+    let tawaqquf = tawaqqufCount;
+    let lahnJali = lahnJaliCount;
+
+    if (item.category === 'makhorijul_huruf') { makhraj = Math.max(0, makhraj - 1); setMakhorijulHurufCount(makhraj); }
+    if (item.category === 'hukum_tajwid') { tajwid = Math.max(0, tajwid - 1); setHukumTajwidCount(tajwid); }
+    if (item.category === 'bacaan_mad') { mad = Math.max(0, mad - 1); setBacaanMadCount(mad); }
+    if (item.category === 'tawaqquf') { tawaqquf = Math.max(0, tawaqquf - 1); setTawaqqufCount(tawaqquf); }
+    if (item.category === 'lahn_jali') { lahnJali = Math.max(0, lahnJali - 1); setLahnJaliCount(lahnJali); }
+
+    const updatedTags = taggedAyahs.filter((t) => t.id !== tagId);
+    setTaggedAyahs(updatedTags);
+
+    const newScoreCalc = Math.max(
+      50,
+      Math.round((100 - (tawaqquf * 2.0) - (lahnJali * 1.5) - (makhraj * 1.0) - (tajwid * 0.75) - (mad * 0.75)) * 10) / 10
+    );
+    const newPred = getPredicate(newScoreCalc);
+
+    if (surahDetail) {
+      const generated = generateTasmiEvaluationNotes(
+        surahDetail.name,
+        ayatFrom,
+        ayatTo,
+        newScoreCalc,
+        newPred,
+        newScoreCalc >= 80,
+        updatedTags,
+        { makhraj, tajwid, mad, tawaqquf, lahnJali }
+      );
+      setNotes(generated);
     }
   };
 
@@ -507,8 +469,6 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
     setTaggedAyahs([]);
     setManualScore(null);
     setIsMutqin(true);
-    setActiveWordPopup(null);
-    setLiveCorrectionAlert(null);
     if (surahDetail) {
       const generated = generateTasmiEvaluationNotes(
         surahDetail.name,
@@ -517,7 +477,8 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
         100,
         'Mumtaz',
         true,
-        []
+        [],
+        { makhraj: 0, tajwid: 0, mad: 0, tawaqquf: 0, lahnJali: 0 }
       );
       setNotes(generated);
     }
@@ -533,7 +494,14 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
       activeScore,
       currentPredicate,
       isMutqin,
-      taggedAyahs
+      taggedAyahs,
+      {
+        makhraj: makhorijulHurufCount,
+        tajwid: hukumTajwidCount,
+        mad: bacaanMadCount,
+        tawaqquf: tawaqqufCount,
+        lahnJali: lahnJaliCount,
+      }
     );
     setNotes(generated);
   };
@@ -590,7 +558,14 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
       activeScore,
       currentPredicate,
       isMutqin,
-      taggedAyahs
+      taggedAyahs,
+      {
+        makhraj: makhorijulHurufCount,
+        tajwid: hukumTajwidCount,
+        mad: bacaanMadCount,
+        tawaqquf: tawaqqufCount,
+        lahnJali: lahnJaliCount,
+      }
     );
 
     const newRecord: TahfizSurahRecord = {
@@ -630,7 +605,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <div className="flex items-center gap-2">
                 <span className="text-[10px] sm:text-xs uppercase tracking-wider font-extrabold text-emerald-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Koreksi Pintar Tasmi' Al-Qur'an (Klik Kata Otomatis)</span>
+                  <span>Koreksi & Evaluasi Tasmi' Al-Qur'an (Tajwid, Makhraj & Mad)</span>
                 </span>
                 <span className="bg-emerald-800 text-emerald-200 px-2 py-0.2 rounded text-[10px] font-semibold border border-emerald-700">
                   SMP Islam Al Azhar 9
@@ -644,6 +619,15 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCertModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer border border-amber-400/60"
+              title="Buka Lembar Sertifikat Kelulusan Tahfiz Per Juz Resmi Al-Azhar"
+            >
+              <Award className="w-3.5 h-3.5 text-slate-950" />
+              <span>Sertifikat Tahfiz Juz {surahDetail?.juz || 30}</span>
+            </button>
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-1.5 text-emerald-200 hover:text-white hover:bg-emerald-800 rounded-lg cursor-pointer transition-colors"
@@ -659,27 +643,6 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
             </button>
           </div>
         </div>
-
-        {/* Live Notification Bar saat Kata Dikoreksi */}
-        {liveCorrectionAlert && (
-          <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white px-4 py-2 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-200 shadow-sm border-b border-emerald-700">
-            <div className="flex items-center gap-2">
-              <span className="p-1 bg-amber-400 text-slate-950 rounded-full font-bold">
-                <Check className="w-3 h-3" />
-              </span>
-              <span>
-                Koreksi Kata <strong>"{liveCorrectionAlert.word}"</strong> (Ayat {liveCorrectionAlert.ayahNumber}):{' '}
-                <strong className="text-amber-200">{liveCorrectionAlert.ruleName}</strong> (-{liveCorrectionAlert.deduction})
-              </span>
-            </div>
-            <div className="flex items-center gap-2 font-bold">
-              <span>Nilai Sekarang:</span>
-              <span className="bg-white text-emerald-950 px-2 py-0.5 rounded-full text-xs font-extrabold font-mono shadow-2xs">
-                {liveCorrectionAlert.newScore} ({liveCorrectionAlert.predicate})
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Secondary Bar: Selection of Surah, Range, Date & Display */}
         <div className="bg-slate-100/90 border-b border-slate-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0">
@@ -823,8 +786,8 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
           
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="font-extrabold text-emerald-950 flex items-center gap-1 mr-1">
-              <MousePointerClick className="w-4 h-4 text-emerald-700" />
-              <span>Koreksi Aktif:</span>
+              <Award className="w-4 h-4 text-emerald-700" />
+              <span>Koreksi Kesalahan:</span>
             </span>
 
             {/* 1. Makhorijul Huruf (-1.0) */}
@@ -840,8 +803,9 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <span className="font-mono font-extrabold text-blue-950 w-5 text-center">{makhorijulHurufCount}</span>
               <button
                 type="button"
-                onClick={() => setMakhorijulHurufCount((v) => v + 1)}
+                onClick={() => handleAddGeneralMistake('makhorijul_huruf')}
                 className="w-4.5 h-4.5 rounded bg-blue-700 text-white font-bold flex items-center justify-center hover:bg-blue-800 cursor-pointer text-xs"
+                title="Tambah kesalahan Makhorijul Huruf"
               >
                 +
               </button>
@@ -860,8 +824,9 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <span className="font-mono font-extrabold text-emerald-950 w-5 text-center">{hukumTajwidCount}</span>
               <button
                 type="button"
-                onClick={() => setHukumTajwidCount((v) => v + 1)}
+                onClick={() => handleAddGeneralMistake('hukum_tajwid')}
                 className="w-4.5 h-4.5 rounded bg-emerald-700 text-white font-bold flex items-center justify-center hover:bg-emerald-800 cursor-pointer text-xs"
+                title="Tambah kesalahan Hukum Tajwid"
               >
                 +
               </button>
@@ -880,8 +845,9 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <span className="font-mono font-extrabold text-purple-950 w-5 text-center">{bacaanMadCount}</span>
               <button
                 type="button"
-                onClick={() => setBacaanMadCount((v) => v + 1)}
+                onClick={() => handleAddGeneralMistake('bacaan_mad')}
                 className="w-4.5 h-4.5 rounded bg-purple-700 text-white font-bold flex items-center justify-center hover:bg-purple-800 cursor-pointer text-xs"
+                title="Tambah kesalahan Bacaan Mad"
               >
                 +
               </button>
@@ -900,8 +866,9 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <span className="font-mono font-extrabold text-amber-950 w-5 text-center">{tawaqqufCount}</span>
               <button
                 type="button"
-                onClick={() => setTawaqqufCount((v) => v + 1)}
+                onClick={() => handleAddGeneralMistake('tawaqquf')}
                 className="w-4.5 h-4.5 rounded bg-amber-700 text-white font-bold flex items-center justify-center hover:bg-amber-800 cursor-pointer text-xs"
+                title="Tambah catatan Lupa / Tersendat"
               >
                 +
               </button>
@@ -920,8 +887,9 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <span className="font-mono font-extrabold text-rose-950 w-5 text-center">{lahnJaliCount}</span>
               <button
                 type="button"
-                onClick={() => setLahnJaliCount((v) => v + 1)}
+                onClick={() => handleAddGeneralMistake('lahn_jali')}
                 className="w-4.5 h-4.5 rounded bg-rose-700 text-white font-bold flex items-center justify-center hover:bg-rose-800 cursor-pointer text-xs"
+                title="Tambah catatan Salah Harakat"
               >
                 +
               </button>
@@ -968,16 +936,6 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
           </div>
         </div>
 
-        {/* Tip Petunjuk Interaktif */}
-        <div className="bg-amber-50/70 border-b border-amber-200 px-4 sm:px-6 py-1.5 text-[11px] text-amber-900 flex items-center justify-between shrink-0 font-medium">
-          <div className="flex items-center gap-1.5">
-            <MousePointerClick className="w-3.5 h-3.5 text-amber-700" />
-            <span>
-              <strong>Fitur Pintar:</strong> Klik langsung pada kata bahasa Arab yang salah dibaca santri. Sistem otomatis mendeteksi hukum tajwid, makhraj huruf, atau mad pada kata tersebut dan langsung menghitung nilai serta koreksiannya.
-            </span>
-          </div>
-        </div>
-
         {/* MAIN BODY: MUSHAF / VERSES */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-slate-50/40">
           
@@ -1012,15 +970,15 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                 )}
               </div>
 
-              {/* Tagged Mistakes Summary (Daftar Ayat yang telah dikoreksi) */}
+              {/* Tagged Mistakes Summary (Daftar Catatan Kesalahan yang Terdata) */}
               {taggedAyahs.length > 0 && (
                 <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-800 flex items-center gap-1.5">
                       <Tag className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Rincian Koreksi Kata & Ayat ({taggedAyahs.length} catatan aktif):</span>
+                      <span>Rincian Catatan Kesalahan Tajwid, Makhraj & Mad ({taggedAyahs.length} catatan):</span>
                     </span>
-                    <span className="text-[11px] text-slate-500">Klik tombol (x) untuk membatalkan koreksi</span>
+                    <span className="text-[11px] text-slate-500">Klik tanda silang (x) untuk membatalkan</span>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">
@@ -1032,7 +990,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${preset.badgeBg}`}
                         >
                           <span>
-                            <strong>Ayat {tag.ayahNumber}{tag.wordText ? ` ("${tag.wordText}")` : ''}:</strong> {preset.shortName}
+                            <strong>Ayat {tag.ayahNumber}:</strong> {preset.shortName}
                             {tag.detail ? ` (${tag.detail})` : ''}
                           </span>
                           <button
@@ -1050,13 +1008,12 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                 </div>
               )}
 
-              {/* VIEW MODE 1: PER AYAT DENGAN KATA-KATA KLIK INTERAKTIF */}
+              {/* VIEW MODE 1: PER AYAT (KOREKSI SESUAI KESALAHAN, BUKAN PERKATA) */}
               {displayMode === 'perAyat' && (
-                <div className="space-y-3">
+                <div className="space-y-3.5">
                   {visibleAyahs.map((ayah) => {
                     const ayahMistakes = taggedAyahs.filter((t) => t.ayahNumber === ayah.numberInSurah);
                     const isPlaying = playingAudioAyah === ayah.numberInSurah;
-                    const words = ayah.text.trim().split(/\s+/);
 
                     return (
                       <div
@@ -1067,13 +1024,13 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                             : 'border-slate-200 hover:border-emerald-300'
                         }`}
                       >
-                        {/* Header bar ayat + audio */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100">
+                        {/* Header bar ayat + audio + tombol koreksi cepat */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-100">
                           <div className="flex items-center gap-2">
                             <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-900 font-bold text-xs flex items-center justify-center border border-emerald-300 font-mono">
                               {ayah.numberInSurah}
                             </span>
-                            <span className="text-[11px] text-slate-500 font-medium">
+                            <span className="text-[11px] text-slate-500 font-semibold">
                               Ayat {ayah.numberInSurah}
                             </span>
 
@@ -1093,16 +1050,66 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500 font-medium">
-                            <MousePointerClick className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Klik langsung kata yang salah di bawah:</span>
+                          {/* 5 TOMBOL KOREKSI SESUAI JENIS KESALAHAN (TAJWID, MAKHRAJ, MAD, LUPA, HARAKAT) */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10.5px] text-slate-400 font-semibold mr-0.5 hidden sm:inline">Koreksi:</span>
+
+                            {/* 1. Makhorijul Huruf */}
+                            <button
+                              type="button"
+                              onClick={() => setPickerModalState({ ayahNumber: ayah.numberInSurah, category: 'makhorijul_huruf' })}
+                              className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-900 text-[11px] font-bold border border-blue-300 transition-colors cursor-pointer shadow-2xs"
+                              title="Koreksi Makhorijul Huruf pada ayat ini"
+                            >
+                              + Makhraj
+                            </button>
+
+                            {/* 2. Hukum Tajwid */}
+                            <button
+                              type="button"
+                              onClick={() => setPickerModalState({ ayahNumber: ayah.numberInSurah, category: 'hukum_tajwid' })}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-[11px] font-bold border border-emerald-300 transition-colors cursor-pointer shadow-2xs"
+                              title="Koreksi Hukum Tajwid pada ayat ini"
+                            >
+                              + Tajwid
+                            </button>
+
+                            {/* 3. Bacaan Mad */}
+                            <button
+                              type="button"
+                              onClick={() => setPickerModalState({ ayahNumber: ayah.numberInSurah, category: 'bacaan_mad' })}
+                              className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 text-[11px] font-bold border border-purple-300 transition-colors cursor-pointer shadow-2xs"
+                              title="Koreksi Bacaan Mad pada ayat ini"
+                            >
+                              + Mad
+                            </button>
+
+                            {/* 4. Lupa / Tersendat */}
+                            <button
+                              type="button"
+                              onClick={() => handleAddAyahMistake(ayah.numberInSurah, 'tawaqquf', 'Lupa sambungan ayat')}
+                              className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 text-[11px] font-bold border border-amber-300 transition-colors cursor-pointer"
+                              title="Murid tersendat atau lupa pada ayat ini"
+                            >
+                              + Lupa
+                            </button>
+
+                            {/* 5. Salah Harakat */}
+                            <button
+                              type="button"
+                              onClick={() => handleAddAyahMistake(ayah.numberInSurah, 'lahn_jali', 'Salah harakat/kata')}
+                              className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-900 text-[11px] font-bold border border-rose-300 transition-colors cursor-pointer"
+                              title="Salah baris harakat atau tertukar kata"
+                            >
+                              + Harakat
+                            </button>
                           </div>
                         </div>
 
-                        {/* ARABIC TEXT: KATA-KATA DAPAT DIKLIK SECARA INDIVIDUAL */}
+                        {/* TEKS ARAB AYAT LENGKAP & ALAMI (TIDAK TERPOTONG PERKATA) */}
                         <div
                           dir="rtl"
-                          className={`font-serif text-right text-slate-900 leading-[2.6] tracking-wide py-2 ${
+                          className={`font-serif text-right text-slate-900 leading-[2.4] tracking-wide py-2 ${
                             fontSize === 'medium'
                               ? 'text-xl'
                               : fontSize === 'large'
@@ -1110,38 +1117,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                               : 'text-3xl sm:text-4xl'
                           }`}
                         >
-                          {words.map((word, wIdx) => {
-                            const wordMistake = taggedAyahs.find(
-                              (t) => t.ayahNumber === ayah.numberInSurah && t.wordIndex === wIdx
-                            );
-                            return (
-                              <span
-                                key={wIdx}
-                                onClick={() => handleWordClick(ayah.numberInSurah, wIdx, word)}
-                                className={`inline-block mx-1 px-2 py-0.5 rounded-xl cursor-pointer transition-all select-none ${
-                                  wordMistake
-                                    ? wordMistake.category === 'hukum_tajwid'
-                                      ? 'bg-emerald-100 text-emerald-950 font-bold ring-2 ring-emerald-500 shadow-xs'
-                                      : wordMistake.category === 'makhorijul_huruf'
-                                      ? 'bg-blue-100 text-blue-950 font-bold ring-2 ring-blue-500 shadow-xs'
-                                      : wordMistake.category === 'bacaan_mad'
-                                      ? 'bg-purple-100 text-purple-950 font-bold ring-2 ring-purple-500 shadow-xs'
-                                      : wordMistake.category === 'tawaqquf'
-                                      ? 'bg-amber-100 text-amber-950 font-bold ring-2 ring-amber-500 shadow-xs'
-                                      : 'bg-rose-100 text-rose-950 font-bold ring-2 ring-rose-500 shadow-xs'
-                                    : 'hover:bg-amber-100/80 hover:text-amber-950 hover:scale-105 active:scale-95'
-                                }`}
-                                title={wordMistake ? `Telah dikoreksi: ${wordMistake.detail}` : `Klik kata "${word}" untuk koreksi otomatis tajwid/makhraj/mad`}
-                              >
-                                {word}
-                                {wordMistake && (
-                                  <span className="text-[9.5px] -top-1.5 relative mr-1 px-1.5 py-0.2 bg-white/95 rounded-full text-slate-900 font-sans font-extrabold border border-slate-300 shadow-2xs">
-                                    {MISTAKE_PRESETS[wordMistake.category].shortName}
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })}
+                          {ayah.text}{' '}
                           <span className="inline-block text-emerald-800 text-base sm:text-lg font-mono font-bold mr-2 text-center align-middle">
                             ۝{ayah.numberInSurah}
                           </span>
@@ -1154,27 +1130,25 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                           </p>
                         )}
 
-                        {/* Badges koreksi spesifik pada ayat ini */}
+                        {/* Badges Koreksi yang Melekat pada Ayat ini */}
                         {ayahMistakes.length > 0 && (
                           <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5">
-                            <span className="text-[10px] font-bold text-slate-500 mr-1">Koreksi ayat ini:</span>
+                            <span className="text-[10px] font-bold text-slate-500 mr-1">Kesalahan tercatat:</span>
                             {ayahMistakes.map((m) => {
                               const preset = MISTAKE_PRESETS[m.category];
                               return (
                                 <span
                                   key={m.id}
-                                  className={`text-[10.5px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border ${preset.badgeBg}`}
+                                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg flex items-center gap-1 border ${preset.badgeBg}`}
                                 >
-                                  <span>
-                                    ● {m.wordText ? `"${m.wordText}" ` : ''}{preset.shortName}: {m.detail || preset.name}
-                                  </span>
+                                  <span>● {preset.shortName}: {m.detail || preset.name}</span>
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveTag(m.id)}
-                                    className="hover:opacity-75 cursor-pointer ml-0.5"
+                                    className="hover:opacity-75 cursor-pointer ml-1 text-slate-500 hover:text-slate-900"
                                     title="Hapus koreksi ini"
                                   >
-                                    <X className="w-3 h-3" />
+                                    <X className="w-3.5 h-3.5" />
                                   </button>
                                 </span>
                               );
@@ -1187,7 +1161,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                 </div>
               )}
 
-              {/* VIEW MODE 2: CONTINUOUS MUSHAF TEXT DENGAN KATA-KATA KLIK */}
+              {/* VIEW MODE 2: CONTINUOUS MUSHAF TEXT */}
               {displayMode === 'mushaf' && (
                 <div className="bg-amber-50/40 border-2 border-amber-900/20 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
                   <div
@@ -1201,51 +1175,27 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                     }`}
                   >
                     {visibleAyahs.map((ayah) => {
-                      const words = ayah.text.trim().split(/\s+/);
+                      const hasMistake = taggedAyahs.some((t) => t.ayahNumber === ayah.numberInSurah);
                       return (
-                        <React.Fragment key={ayah.numberInSurah}>
-                          {words.map((word, wIdx) => {
-                            const wordMistake = taggedAyahs.find(
-                              (t) => t.ayahNumber === ayah.numberInSurah && t.wordIndex === wIdx
-                            );
-                            return (
-                              <span
-                                key={wIdx}
-                                onClick={() => handleWordClick(ayah.numberInSurah, wIdx, word)}
-                                className={`inline-block mx-1 px-1.5 py-0.5 rounded-xl cursor-pointer transition-all ${
-                                  wordMistake
-                                    ? wordMistake.category === 'hukum_tajwid'
-                                      ? 'bg-emerald-200/90 text-emerald-950 font-bold ring-2 ring-emerald-500 shadow-xs'
-                                      : wordMistake.category === 'makhorijul_huruf'
-                                      ? 'bg-blue-200/90 text-blue-950 font-bold ring-2 ring-blue-500 shadow-xs'
-                                      : wordMistake.category === 'bacaan_mad'
-                                      ? 'bg-purple-200/90 text-purple-950 font-bold ring-2 ring-purple-500 shadow-xs'
-                                      : wordMistake.category === 'tawaqquf'
-                                      ? 'bg-amber-200/90 text-amber-950 font-bold ring-2 ring-amber-500 shadow-xs'
-                                      : 'bg-rose-200/90 text-rose-950 font-bold ring-2 ring-rose-500 shadow-xs'
-                                    : 'hover:bg-amber-200/60'
-                                }`}
-                                title={wordMistake ? `Telah dikoreksi: ${wordMistake.detail}` : `Klik kata "${word}" untuk koreksi otomatis`}
-                              >
-                                {word}
-                                {wordMistake && (
-                                  <span className="text-[9px] -top-1.5 relative mr-1 px-1 py-0.2 bg-white rounded-full text-slate-800 font-sans font-bold border border-slate-300">
-                                    {MISTAKE_PRESETS[wordMistake.category].shortName}
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })}
+                        <span
+                          key={ayah.numberInSurah}
+                          onClick={() => setPickerModalState({ ayahNumber: ayah.numberInSurah, category: 'hukum_tajwid' })}
+                          className={`inline cursor-pointer px-1 rounded transition-colors ${
+                            hasMistake ? 'bg-rose-200/70 text-rose-950 font-bold' : 'hover:bg-amber-200/50'
+                          }`}
+                          title={`Ayat ${ayah.numberInSurah}: Klik untuk menambah koreksi kesalahan`}
+                        >
+                          {ayah.text}{' '}
                           <span className="inline-block text-emerald-800 text-base sm:text-lg font-mono font-bold mx-1 text-center align-middle">
                             ۝{ayah.numberInSurah}
                           </span>{' '}
-                        </React.Fragment>
+                        </span>
                       );
                     })}
                   </div>
 
                   <div className="text-[11px] text-slate-500 text-center font-sans">
-                    Tip: Klik pada kata mana saja di atas untuk langsung mendeteksi kesalahan Makhorijul Huruf, Hukum Tajwid, atau Bacaan Mad secara otomatis.
+                    Tip: Klik pada ayat untuk membuka koreksi Makhorijul Huruf, Hukum Tajwid, atau Bacaan Mad.
                   </div>
                 </div>
               )}
@@ -1262,11 +1212,11 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                       <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                         <span>Evaluasi & Catatan Kesalahan Tasmi'</span>
                         <span className="text-[10px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full font-semibold border border-emerald-300">
-                          {taggedAyahs.length} Koreksi Aktif
+                          {makhorijulHurufCount + hukumTajwidCount + bacaanMadCount + tawaqqufCount + lahnJaliCount} Total Kesalahan
                         </span>
                       </h4>
                       <p className="text-[11px] text-slate-500">
-                        Hasil analisis koreksi Makhorijul Huruf, Hukum Tajwid, Bacaan Mad per kata & ayat secara otomatis.
+                        Hasil analisis koreksi Makhorijul Huruf, Hukum Tajwid, Bacaan Mad, dan kelancaran hafalan santri.
                       </p>
                     </div>
                   </div>
@@ -1275,7 +1225,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                     type="button"
                     onClick={handleGenerateSmartNotes}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
-                    title="Perbarui catatan evaluasi otomatis berdasarkan ayat yang baru dikoreksi"
+                    title="Perbarui catatan evaluasi otomatis berdasarkan jenis kesalahan yang dicatat"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Generate Catatan Otomatis</span>
@@ -1332,7 +1282,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
                     rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Catatan evaluasi bimbingan santri (otomatis terisi dari ayat & kata yang dikoreksi)..."
+                    placeholder="Catatan evaluasi bimbingan santri (otomatis terisi dari jenis kesalahan yang dicatat)..."
                     className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:ring-2 focus:ring-emerald-700 focus:outline-none leading-relaxed shadow-2xs"
                   />
 
@@ -1391,6 +1341,16 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               type="button"
+              onClick={() => setIsCertModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-xl transition-colors cursor-pointer shadow-xs"
+              title="Buka Sertifikat Kelulusan Tahfiz Per Juz Resmi"
+            >
+              <Award className="w-4 h-4 text-amber-700" />
+              <span>Sertifikat Tahfiz Juz</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             >
@@ -1410,146 +1370,7 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
 
       </div>
 
-      {/* POPOVER KOREKSI KATA OTOMATIS: KETIKA KATA DIKLIK, LANGSUNG TAHU KESALAHANNYA */}
-      {activeWordPopup && (
-        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in zoom-in-95 duration-150">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 border border-slate-200">
-            
-            {/* Header Popover Kata */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-xs">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-1.5">
-                    <span>Koreksi Otomatis Kata (Ayat {activeWordPopup.ayahNumber})</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    Sistem mendeteksi kaidah tajwid, makhraj, dan mad pada kata ini:
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveWordPopup(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Tampilan Kata Arab Besar & Jelas */}
-            <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white rounded-2xl p-4 text-center shadow-inner relative overflow-hidden">
-              <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider block mb-1">
-                Kata yang Dikoreksi:
-              </span>
-              <div dir="rtl" className="font-serif text-3xl sm:text-4xl text-amber-200 py-1 font-bold">
-                {activeWordPopup.wordText}
-              </div>
-              {activeWordPopup.existingTag && (
-                <div className="mt-2 inline-flex items-center gap-1 text-[11px] bg-rose-500/90 text-white px-2.5 py-0.5 rounded-full font-bold">
-                  <span>Saat ini dikoreksi: {activeWordPopup.existingTag.detail || activeWordPopup.existingTag.label}</span>
-                </div>
-              )}
-            </div>
-
-            {/* 1. REKOMENDASI UTAMA: LANGSUNG DI-KLIK LANGSUNG TAHU KESALAHAN & NILAI MUNCUL */}
-            {activeWordPopup.detectedMistakes.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-[11px] font-extrabold text-emerald-950 uppercase tracking-tight flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Rekomendasi Deteksi Cerdas (Klik 1 Kali untuk Terapkan):</span>
-                </span>
-
-                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                  {activeWordPopup.detectedMistakes.map((det, dIdx) => (
-                    <button
-                      key={dIdx}
-                      type="button"
-                      onClick={() => handleApplyWordMistake(
-                        activeWordPopup.ayahNumber,
-                        activeWordPopup.wordIndex,
-                        activeWordPopup.wordText,
-                        det.category,
-                        det.detail,
-                        det.deduction,
-                        det.ruleName
-                      )}
-                      className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 shadow-2xs group ${
-                        det.isPrimary
-                          ? 'bg-emerald-50/90 hover:bg-emerald-100 border-emerald-400 ring-2 ring-emerald-500/20'
-                          : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                      }`}
-                    >
-                      <div className="space-y-0.5 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                            det.category === 'makhorijul_huruf' ? 'bg-blue-100 text-blue-900' :
-                            det.category === 'hukum_tajwid' ? 'bg-emerald-100 text-emerald-900' :
-                            det.category === 'bacaan_mad' ? 'bg-purple-100 text-purple-900' :
-                            det.category === 'tawaqquf' ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'
-                          }`}>
-                            {det.label}
-                          </span>
-                          <span className="font-bold text-xs text-slate-900 group-hover:text-emerald-950">
-                            {det.ruleName}
-                          </span>
-                          {det.isPrimary && (
-                            <span className="bg-amber-100 text-amber-900 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full border border-amber-300">
-                              Paling Cocok
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-600 leading-relaxed">
-                          {det.detail}
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 text-right">
-                        <span className="inline-block px-2 py-1 bg-white text-rose-700 font-mono font-extrabold rounded-lg text-xs border border-rose-200 shadow-2xs">
-                          -{det.deduction}
-                        </span>
-                        <span className="text-[10px] text-emerald-700 font-bold block mt-1">
-                          Terapkan →
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Tombol Hapus Koreksi jika sudah ada */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              {activeWordPopup.existingTag ? (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTag(activeWordPopup.existingTag!.id)}
-                  className="px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer border border-rose-200"
-                >
-                  Hapus Koreksi Kata Ini
-                </button>
-              ) : (
-                <span className="text-[11px] text-slate-400">
-                  Nilai berkurang otomatis saat salah satu opsi ditekan
-                </span>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setActiveWordPopup(null)}
-                className="px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* MODAL PICKER SUB-KESALAHAN SPESIFIK TINGKAT AYAT */}
+      {/* MODAL PICKER RINCIAN KESALAHAN SPESIFIK (TIDAK PERKATA, FLEKSIBEL SESUAI JENIS KESALAHAN) */}
       {pickerModalState && (
         <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in duration-100">
           <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-5 shadow-2xl space-y-3.5 border border-slate-200">
@@ -1557,48 +1378,115 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
               <div className="flex items-center gap-2">
                 <span className={`w-3 h-3 rounded-full ${
                   pickerModalState.category === 'makhorijul_huruf' ? 'bg-blue-600' :
-                  pickerModalState.category === 'hukum_tajwid' ? 'bg-emerald-600' : 'bg-purple-600'
+                  pickerModalState.category === 'hukum_tajwid' ? 'bg-emerald-600' :
+                  pickerModalState.category === 'bacaan_mad' ? 'bg-purple-600' :
+                  pickerModalState.category === 'tawaqquf' ? 'bg-amber-600' : 'bg-rose-600'
                 }`} />
                 <h4 className="font-bold text-sm text-slate-900">
-                  Pilih Rincian {MISTAKE_PRESETS[pickerModalState.category].name} (Ayat {pickerModalState.ayahNumber})
+                  Koreksi Ayat {pickerModalState.ayahNumber}: {MISTAKE_PRESETS[pickerModalState.category].name}
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setPickerModalState(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
+            {/* Category Switcher Tabs */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              {(['makhorijul_huruf', 'hukum_tajwid', 'bacaan_mad', 'tawaqquf', 'lahn_jali'] as MistakeCategory[]).map((cat) => {
+                const meta = MISTAKE_PRESETS[cat];
+                const isAct = pickerModalState.category === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setPickerModalState({ ...pickerModalState, category: cat })}
+                    className={`flex-1 py-1 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                      isAct ? `${meta.badgeBg} shadow-xs font-black` : 'text-slate-600 hover:text-slate-950'
+                    }`}
+                  >
+                    {meta.shortName}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick 1-Click Generic Add Button */}
             <button
               type="button"
-              onClick={() => handleAddAyahLevelMistake(pickerModalState.ayahNumber, pickerModalState.category)}
-              className="w-full text-left p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-800 transition-colors flex items-center justify-between cursor-pointer"
+              onClick={() => handleAddAyahMistake(pickerModalState.ayahNumber, pickerModalState.category)}
+              className="w-full text-left p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-800 transition-colors flex items-center justify-between cursor-pointer shadow-2xs"
             >
               <span>+ Tambah Koreksi Umum ({MISTAKE_PRESETS[pickerModalState.category].name})</span>
-              <span className="text-[10px] text-slate-400">Default</span>
+              <span className="text-[10px] text-rose-600 font-mono font-bold">-{MISTAKE_PRESETS[pickerModalState.category].deduction} Poin</span>
             </button>
 
-            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-tight block px-1">
+            {/* Subtypes List (Specific Error Options) */}
+            <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight block px-1">
                 Atau pilih rincian kesalahan spesifik:
               </span>
               {MISTAKE_PRESETS[pickerModalState.category].subtypes.map((sub, sIdx) => (
                 <button
                   key={sIdx}
                   type="button"
-                  onClick={() => handleAddAyahLevelMistake(pickerModalState.ayahNumber, pickerModalState.category, sub)}
+                  onClick={() => handleAddAyahMistake(pickerModalState.ayahNumber, pickerModalState.category, sub)}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between cursor-pointer ${MISTAKE_PRESETS[pickerModalState.category].chipBg}`}
                 >
                   <span>{sub}</span>
-                  <Check className="w-3.5 h-3.5 opacity-60" />
+                  <span className="text-[10px] font-mono font-bold opacity-75">
+                    -{MISTAKE_PRESETS[pickerModalState.category].deduction}
+                  </span>
                 </button>
               ))}
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
+            {/* Input Catatan Koreksi Bebas */}
+            <div className="pt-2 border-t border-slate-100 space-y-1.5">
+              <label className="text-[10.5px] font-bold text-slate-600 block">
+                Atau tulis catatan koreksi sendiri untuk ayat ini:
+              </label>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={customDetailText}
+                  onChange={(e) => setCustomDetailText(e.target.value)}
+                  placeholder={`Misal: ${
+                    pickerModalState.category === 'makhorijul_huruf'
+                      ? 'Huruf \'Ain terbaca seperti Hamzah'
+                      : pickerModalState.category === 'bacaan_mad'
+                      ? 'Mad Wajib dibaca hanya 2 harakat'
+                      : 'Ikhfa kurang dengung 2 harakat'
+                  }`}
+                  className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-emerald-600"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && customDetailText.trim()) {
+                      handleAddAyahMistake(pickerModalState.ayahNumber, pickerModalState.category, customDetailText.trim());
+                      setCustomDetailText('');
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (customDetailText.trim()) {
+                      handleAddAyahMistake(pickerModalState.ayahNumber, pickerModalState.category, customDetailText.trim());
+                      setCustomDetailText('');
+                    }
+                  }}
+                  disabled={!customDetailText.trim()}
+                  className="px-3 py-1 bg-emerald-700 disabled:opacity-50 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg cursor-pointer"
+                >
+                  Simpan
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-1 border-t border-slate-100 flex justify-end">
               <button
                 type="button"
                 onClick={() => setPickerModalState(null)}
@@ -1610,6 +1498,30 @@ export const QuranSimakanModal: React.FC<QuranSimakanModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODAL SERTIFIKAT KELULUSAN TAHFIZ PER JUZ */}
+      <SertifikatTahfizModal
+        isOpen={isCertModalOpen}
+        onClose={() => setIsCertModalOpen(false)}
+        student={student}
+        report={report || null}
+        settings={settings || {
+          schoolName: 'SMP ISLAM AL AZHAR 9 BEKASI',
+          address: 'Jl. Kemang Pratama Raya No. 1, Rawalumbu, Kota Bekasi 17116 Telp. (021) 82414144',
+          city: 'Bekasi',
+          principalName: 'Andi Krisdianto, S.Pd.I',
+          principalNip: '19760812 200212 1 003',
+          coordinatorName: teacherName || 'Mahmud Ali Yafi, S.S, M.Pd.I.',
+          coordinatorTitle: 'Koordinator Tahfiz Al-Qur\'an',
+          academicYear: '2025/2026',
+          semester: 'I (Satu)',
+          reportDate: '22 Desember 2025',
+          kkmTahfiz: 75,
+          kkmTahsin: 75,
+        }}
+        teacherName={teacherName}
+        defaultJuz={surahDetail?.juz || 30}
+      />
 
     </div>
   );

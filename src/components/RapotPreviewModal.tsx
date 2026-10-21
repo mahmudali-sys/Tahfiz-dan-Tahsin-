@@ -13,7 +13,8 @@ import {
   getExamResultRows,
 } from '../data/alazharReportFormat';
 import { IQRO_AMM_JILID_DATA } from '../data/iqroData';
-import { generateRapotPDF } from '../utils/pdfGenerator';
+import { generateRapotPDF, isClassWithoutIqro } from '../utils/pdfGenerator';
+import { SertifikatTahfizModal } from './SertifikatTahfizModal';
 
 interface RapotPreviewModalProps {
   isOpen: boolean;
@@ -37,10 +38,12 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
   if (!isOpen || !reportData) return null;
 
   const { student, tahsin, tahfizRecords } = reportData;
+  const isWithoutIqro = isClassWithoutIqro(student.className);
   const [startJilid, setStartJilid] = useState<number>(1); // Mulai dari Jilid 1
   const [tahfizScope, setTahfizScope] = useState<TahfizScopeMode>('all'); // Default: Lengkap Juz 30, 29, 28, 27, 26
 
-  // Modal Logo State
+  // Modal Sertifikat Tahfiz & Logo State
+  const [isCertModalOpen, setIsCertModalOpen] = useState(false);
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
   const [schoolLogoDraft, setSchoolLogoDraft] = useState<string>(settings.schoolLogo || '');
   const [foundationLogoDraft, setFoundationLogoDraft] = useState<string>(settings.foundationLogo || '');
@@ -261,33 +264,35 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Opsi Jilid Awal: Default Jilid 1 */}
-            <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-lg text-xs border border-slate-700">
-              <button
-                type="button"
-                onClick={() => setStartJilid(1)}
-                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                  startJilid === 1
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-                title="Mulai kurikulum Tahsin dari Jilid 1 (Lengkap 1-6)"
-              >
-                Mulai Jilid 1
-              </button>
-              <button
-                type="button"
-                onClick={() => setStartJilid(3)}
-                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                  startJilid === 3
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-                title="Mulai kurikulum Tahsin dari Jilid 3 (Lanjutan 3-6)"
-              >
-                Mulai Jilid 3
-              </button>
-            </div>
+            {/* Opsi Jilid Awal: Hanya untuk kelas yang menggunakan kurikulum Iqro' AMM (Bukan 8C/9C) */}
+            {!isWithoutIqro && (
+              <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-lg text-xs border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setStartJilid(1)}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                    startJilid === 1
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                  title="Mulai kurikulum Tahsin dari Jilid 1 (Lengkap 1-6)"
+                >
+                  Mulai Jilid 1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStartJilid(3)}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                    startJilid === 3
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                  title="Mulai kurikulum Tahsin dari Jilid 3 (Lanjutan 3-6)"
+                >
+                  Mulai Jilid 3
+                </button>
+              </div>
+            )}
 
             {/* Opsi Cakupan Tahfiz: Default Juz 30 s.d 26 */}
             <div className="inline-flex items-center bg-slate-800 p-0.5 rounded-lg text-xs border border-slate-700">
@@ -329,26 +334,37 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               </button>
             </div>
 
+            {/* Tombol Sertifikat Tahfiz Per Juz Resmi */}
+            <button
+              type="button"
+              onClick={() => setIsCertModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer border border-amber-400/60"
+              title="Buka dan cetak Syahadah / Sertifikat Kelulusan Tahfiz Per Juz (Kertas A4 Landscape Resmi)"
+            >
+              <Award className="w-4 h-4 text-slate-950" />
+              <span>Sertifikat Tahfiz Juz</span>
+            </button>
+
             {/* Tombol Ganti Logo Sekolah & Yayasan */}
             <button
               type="button"
               onClick={() => setIsLogoModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer border border-slate-700"
               title="Ganti logo sekolah dan logo yayasan pada lembar rapot"
             >
-              <ImageIcon className="w-4 h-4" />
-              <span>Ganti Logo Sekolah</span>
+              <ImageIcon className="w-4 h-4 text-amber-400" />
+              <span>Logo</span>
             </button>
 
             {/* Tombol Edit Nilai & Catatan Evaluasi Ujian */}
             <button
               type="button"
               onClick={() => setIsExamModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-700 hover:bg-teal-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
               title="Ubah nilai dan catatan evaluasi hasil ujian rapot santri"
             >
               <Edit3 className="w-4 h-4" />
-              <span>Edit Hasil Ujian</span>
+              <span>Edit Ujian</span>
             </button>
 
             <button
@@ -357,7 +373,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               title="Unduh file dokumen Rapot format PDF ukuran kertas A4 (1 Lembar Pas)"
             >
               <Download className="w-4 h-4" />
-              <span>Unduh PDF (A4 1 Lembar)</span>
+              <span>Unduh PDF</span>
             </button>
             <button
               onClick={handlePrint}
@@ -365,7 +381,7 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               title="Cetak langsung rapot dengan format kertas A4"
             >
               <Printer className="w-4 h-4" />
-              <span>Cetak (Kertas A4)</span>
+              <span>Cetak (A4)</span>
             </button>
             <button
               onClick={onClose}
@@ -474,151 +490,163 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               A. Materi Pelajaran
             </div>
 
-            {/* 1. TAHSIN */}
-            <div className="text-[10.5px] sm:text-[11.5px] font-bold text-black mb-1 ml-1 flex items-center justify-between">
-              <span>1. Tahsin (Evaluasi Capaian Pembelajaran Metode Iqro' AMM Yogyakarta)</span>
-            </div>
+            {!isWithoutIqro ? (
+              <>
+                {/* 1. TAHSIN */}
+                <div className="text-[10.5px] sm:text-[11.5px] font-bold text-black mb-1 ml-1 flex items-center justify-between">
+                  <span>1. Tahsin (Evaluasi Capaian Pembelajaran Metode Iqro' AMM Yogyakarta)</span>
+                </div>
 
-            {/* TABEL TAHSIN (LENGKAP EVALUASI PER JILID IQRO') */}
-            <div className="overflow-x-auto mb-2.5">
-              <table className="w-full border-collapse border border-black text-[9px] sm:text-[9.5px]">
-                <thead>
-                  <tr className="bg-white">
-                    <th rowSpan={2} className="border border-black py-0.5 px-0.5 text-center font-bold w-5">
-                      No
-                    </th>
-                    <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-14">
-                      Mata Pelajaran
-                    </th>
-                    <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-13">
-                      Jilid Iqro'
-                    </th>
-                    <th colSpan={3} className="border border-black py-0.5 px-1 text-center font-bold">
-                      Aspek Penilaian
-                    </th>
-                    <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-26">
-                      Keterangan Kenaikan Jilid
-                    </th>
-                    <th rowSpan={2} className="border border-black py-0.5 px-1.5 text-center font-bold">
-                      Hasil Evaluasi Tahsin per Jilid Iqro'
-                    </th>
-                  </tr>
-                  <tr className="bg-white">
-                    <th className="border border-black py-0.5 px-1 text-center font-bold">Materi Pokok Iqro'</th>
-                    <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Angka</th>
-                    <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Huruf</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedCurriculum.flatMap((group, gIdx) => {
-                    const isFirstGroup = gIdx === 0;
+                {/* TABEL TAHSIN (LENGKAP EVALUASI PER JILID IQRO') */}
+                <div className="overflow-x-auto mb-2.5">
+                  <table className="w-full border-collapse border border-black text-[9px] sm:text-[9.5px]">
+                    <thead>
+                      <tr className="bg-white">
+                        <th rowSpan={2} className="border border-black py-0.5 px-0.5 text-center font-bold w-5">
+                          No
+                        </th>
+                        <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-14">
+                          Mata Pelajaran
+                        </th>
+                        <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-13">
+                          Jilid Iqro'
+                        </th>
+                        <th colSpan={3} className="border border-black py-0.5 px-1 text-center font-bold">
+                          Aspek Penilaian
+                        </th>
+                        <th rowSpan={2} className="border border-black py-0.5 px-1 text-center font-bold w-26">
+                          Keterangan Kenaikan Jilid
+                        </th>
+                        <th rowSpan={2} className="border border-black py-0.5 px-1.5 text-center font-bold">
+                          Hasil Evaluasi Tahsin per Jilid Iqro'
+                        </th>
+                      </tr>
+                      <tr className="bg-white">
+                        <th className="border border-black py-0.5 px-1 text-center font-bold">Materi Pokok Iqro'</th>
+                        <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Angka</th>
+                        <th className="border border-black py-0.5 px-0.5 text-center font-bold w-8">Huruf</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedCurriculum.flatMap((group, gIdx) => {
+                        const isFirstGroup = gIdx === 0;
 
-                    // Hitung nilai rata-rata guru pada jilid ini untuk menghasilkan catatan otomatis
-                    const jilidScores = group.aspects.map((aspect) => {
-                      let sc = aspect.defaultScore;
-                      if (tahsin.aspects && tahsin.aspects.length > 0) {
-                        const found = tahsin.aspects.find(
-                          (a) => a.key === aspect.id || a.name.toLowerCase().includes(aspect.name.toLowerCase().slice(0, 10))
+                        // Hitung nilai rata-rata guru pada jilid ini untuk menghasilkan catatan otomatis
+                        const jilidScores = group.aspects.map((aspect) => {
+                          let sc = aspect.defaultScore;
+                          if (tahsin.aspects && tahsin.aspects.length > 0) {
+                            const found = tahsin.aspects.find(
+                              (a) => a.key === aspect.id || a.name.toLowerCase().includes(aspect.name.toLowerCase().slice(0, 10))
+                            );
+                            if (found) sc = found.score;
+                            else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
+                              sc = tahsin.jilidHistory[group.jilid as any].score;
+                            }
+                          } else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
+                            sc = tahsin.jilidHistory[group.jilid as any].score;
+                          }
+                          return sc;
+                        });
+                        const avgJilidScore = Math.round(jilidScores.reduce((a, b) => a + b, 0) / jilidScores.length);
+                        const jilidAutoNote = getAutomatedTahsinJilidNote(
+                          group.jilid,
+                          avgJilidScore,
+                          student.name,
+                          tahsin.jilidHistory?.[group.jilid as any]?.notes
                         );
-                        if (found) sc = found.score;
-                        else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
-                          sc = tahsin.jilidHistory[group.jilid as any].score;
-                        }
-                      } else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
-                        sc = tahsin.jilidHistory[group.jilid as any].score;
-                      }
-                      return sc;
-                    });
-                    const avgJilidScore = Math.round(jilidScores.reduce((a, b) => a + b, 0) / jilidScores.length);
-                    const jilidAutoNote = getAutomatedTahsinJilidNote(
-                      group.jilid,
-                      avgJilidScore,
-                      student.name,
-                      tahsin.jilidHistory?.[group.jilid as any]?.notes
-                    );
 
-                    return group.aspects.map((aspect, aIdx) => {
-                      const isFirstOfGroup = aIdx === 0;
+                        return group.aspects.map((aspect, aIdx) => {
+                          const isFirstOfGroup = aIdx === 0;
 
-                      // Lookup nilai
-                      let scoreVal = aspect.defaultScore;
-                      if (tahsin.aspects && tahsin.aspects.length > 0) {
-                        const found = tahsin.aspects.find(
-                          (a) => a.key === aspect.id || a.name.toLowerCase().includes(aspect.name.toLowerCase().slice(0, 10))
-                        );
-                        if (found) scoreVal = found.score;
-                        else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
-                          scoreVal = tahsin.jilidHistory[group.jilid as any].score;
-                        }
-                      } else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
-                        scoreVal = tahsin.jilidHistory[group.jilid as any].score;
-                      }
+                          // Lookup nilai
+                          let scoreVal = aspect.defaultScore;
+                          if (tahsin.aspects && tahsin.aspects.length > 0) {
+                            const found = tahsin.aspects.find(
+                              (a) => a.key === aspect.id || a.name.toLowerCase().includes(aspect.name.toLowerCase().slice(0, 10))
+                            );
+                            if (found) scoreVal = found.score;
+                            else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
+                              scoreVal = tahsin.jilidHistory[group.jilid as any].score;
+                            }
+                          } else if (tahsin.jilidHistory && tahsin.jilidHistory[group.jilid as any]?.score) {
+                            scoreVal = tahsin.jilidHistory[group.jilid as any].score;
+                          }
 
-                      const letterVal = getLetterScore(scoreVal);
+                          const letterVal = getLetterScore(scoreVal);
 
-                      return (
-                        <tr key={aspect.id} className="hover:bg-slate-50/50">
-                          {isFirstGroup && isFirstOfGroup && (
-                            <td
-                              rowSpan={totalTahsinAspects}
-                              className="border border-black text-center font-bold align-middle py-0.5 px-0.5"
-                            >
-                              1
-                            </td>
-                          )}
-                          {isFirstGroup && isFirstOfGroup && (
-                            <td
-                              rowSpan={totalTahsinAspects}
-                              className="border border-black text-center font-bold align-middle py-0.5 px-1"
-                            >
-                              Tahsin
-                            </td>
-                          )}
-                          {isFirstOfGroup && (
-                            <td
-                              rowSpan={group.aspects.length}
-                              className="border border-black text-center font-bold align-middle py-0.5 px-0.5 text-[8.5px] sm:text-[9px]"
-                            >
-                              Iqro' {group.jilid}
-                            </td>
-                          )}
-                          <td className="border border-black py-0.5 px-1.5 text-left leading-tight">
-                            {aspect.name}
-                          </td>
-                          <td className="border border-black py-0.5 px-0.5 text-center font-mono">
-                            {scoreVal}
-                          </td>
-                          <td className="border border-black py-0.5 px-0.5 text-center font-bold">
-                            {letterVal}
-                          </td>
-                          {isFirstOfGroup && (
-                            <td
-                              rowSpan={group.aspects.length}
-                              className="border border-black text-center font-bold align-middle py-0.5 px-1 text-[8px] sm:text-[8.5px]"
-                            >
-                              {group.keterangan}
-                            </td>
-                          )}
-                          {isFirstOfGroup && (
-                            <td
-                              rowSpan={group.aspects.length}
-                              className="border border-black text-left align-middle py-0.5 px-1.5 text-[7.5px] sm:text-[8px] leading-snug italic text-slate-800"
-                            >
-                              {jilidAutoNote}
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    });
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          return (
+                            <tr key={aspect.id} className="hover:bg-slate-50/50">
+                              {isFirstGroup && isFirstOfGroup && (
+                                <td
+                                  rowSpan={totalTahsinAspects}
+                                  className="border border-black text-center font-bold align-middle py-0.5 px-0.5"
+                                >
+                                  1
+                                </td>
+                              )}
+                              {isFirstGroup && isFirstOfGroup && (
+                                <td
+                                  rowSpan={totalTahsinAspects}
+                                  className="border border-black text-center font-bold align-middle py-0.5 px-1"
+                                >
+                                  Tahsin
+                                </td>
+                              )}
+                              {isFirstOfGroup && (
+                                <td
+                                  rowSpan={group.aspects.length}
+                                  className="border border-black text-center font-bold align-middle py-0.5 px-0.5 text-[8.5px] sm:text-[9px]"
+                                >
+                                  Iqro' {group.jilid}
+                                </td>
+                              )}
+                              <td className="border border-black py-0.5 px-1.5 text-left leading-tight">
+                                {aspect.name}
+                              </td>
+                              <td className="border border-black py-0.5 px-0.5 text-center font-mono">
+                                {scoreVal}
+                              </td>
+                              <td className="border border-black py-0.5 px-0.5 text-center font-bold">
+                                {letterVal}
+                              </td>
+                              {isFirstOfGroup && (
+                                <td
+                                  rowSpan={group.aspects.length}
+                                  className="border border-black text-center font-bold align-middle py-0.5 px-1 text-[8px] sm:text-[8.5px]"
+                                >
+                                  {group.keterangan}
+                                </td>
+                              )}
+                              {isFirstOfGroup && (
+                                <td
+                                  rowSpan={group.aspects.length}
+                                  className="border border-black text-left align-middle py-0.5 px-1.5 text-[7.5px] sm:text-[8px] leading-snug italic text-slate-800"
+                                >
+                                  {jilidAutoNote}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        });
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* 2. TAHFIZ */}
-            <div className="text-[10.5px] sm:text-[11.5px] font-bold text-black mb-1 ml-1">
-              2. Tahfiz
-            </div>
+                {/* 2. TAHFIZ */}
+                <div className="text-[10.5px] sm:text-[11.5px] font-bold text-black mb-1 ml-1">
+                  2. Tahfiz
+                </div>
+              </>
+            ) : (
+              /* KHUSUS KELAS 8C DAN 9C: TIDAK MEMAKAI KOLOM TAHSIN DARI BUKU IQRO' AMM YOGYAKARTA */
+              <div className="text-[10.5px] sm:text-[11.5px] font-bold text-black mb-1.5 ml-1 flex items-center justify-between">
+                <span>Tahfiz Al-Qur'an</span>
+                <span className="text-[9px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                  Khusus Kelas {student.className}: Kurikulum Tahfiz Al-Qur'an (Bebas Kolom Tahsin Iqro' AMM)
+                </span>
+              </div>
+            )}
 
             {/* TABEL TAHFIZ (3 KOLOM BERDAMPINGAN SECARA PARALEL) */}
             <div className="overflow-x-auto mb-2.5">
@@ -730,9 +758,9 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
               </table>
             </div>
 
-            {/* FOOTER: RENTANG NILAI (KIRI) & TANDA TANGAN (KANAN) */}
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              {/* Sisi Kiri: Rentang Nilai */}
+            {/* FOOTER: RENTANG NILAI & TANDA TANGAN RESMI 3 KOLOM */}
+            <div className="pt-1.5 space-y-2">
+              {/* Rentang Nilai */}
               <div>
                 <div className="text-[9.5px] font-bold uppercase mb-0.5">
                   RENTANG NILAI
@@ -746,29 +774,32 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-3 text-[9.5px] font-bold">
-                  Orang Tua/Wali,
-                </div>
-                <div className="mt-8 text-[9.5px]">
-                  (____________________________)
-                </div>
               </div>
 
-              {/* Sisi Kanan: Tanggal & Koordinator */}
-              <div className="text-right flex flex-col justify-between items-end pr-3">
-                <div>
-                  <div className="text-[10px]">
-                    {settings.city || 'Bekasi'}, {settings.reportDate || '22 Desember 2025'}
-                  </div>
-                  <div className="text-[10px] font-bold mt-0.5">
-                    {settings.coordinatorTitle || 'Koordinator Tahfiz'}
-                  </div>
+              {/* 3 Kolom Tanda Tangan: Orang Tua, Koordinator Tahfiz, Kepala Sekolah */}
+              <div className="grid grid-cols-3 gap-2 text-center text-[9px] sm:text-[9.5px] pt-1 border-t border-slate-200">
+                {/* Kolom 1: Orang Tua */}
+                <div className="flex flex-col justify-between h-20">
+                  <div className="font-bold">Orang Tua/Wali,</div>
+                  <div>(____________________________)</div>
                 </div>
 
-                <div className="mt-10 text-center min-w-[190px]">
-                  <div className="text-[10px] font-bold underline">
-                    {coordinatorName}
+                {/* Kolom 2: Koordinator Tahfiz */}
+                <div className="flex flex-col justify-between h-20">
+                  <div className="font-bold">{settings.coordinatorTitle || 'Koordinator Tahfiz,'}</div>
+                  <div className="font-bold underline">{coordinatorName}</div>
+                </div>
+
+                {/* Kolom 3: Kepala SMP Islam Al Azhar 9 */}
+                <div className="flex flex-col justify-between h-20">
+                  <div>
+                    <div className="text-[8.5px] text-slate-700">
+                      {settings.city || 'Bekasi'}, {settings.reportDate || '22 Desember 2025'}
+                    </div>
+                    <div className="font-bold mt-0.5">Kepala SMP Islam Al Azhar 9,</div>
+                  </div>
+                  <div className="font-bold underline">
+                    {settings.principalName || 'Andi Krisdianto, S.Pd.I'}
                   </div>
                 </div>
               </div>
@@ -1199,6 +1230,16 @@ export const RapotPreviewModal: React.FC<RapotPreviewModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODAL SERTIFIKAT KELULUSAN TAHFIZ PER JUZ */}
+      <SertifikatTahfizModal
+        isOpen={isCertModalOpen}
+        onClose={() => setIsCertModalOpen(false)}
+        student={student}
+        report={reportData}
+        settings={settings}
+        teacherName={teacherName}
+      />
     </div>
   );
 };

@@ -18,8 +18,9 @@ import { StudentReportData, SchoolSettings, Teacher } from '../types';
 import { QURAN_SURAHS, getPredicate, getPredicateColor } from '../data/quranData';
 import { IQRO_AMM_JILID_DATA, IqroJilid } from '../data/iqroData';
 import { getExamResultRows, getAutomatedTahsinJilidNote } from '../data/alazharReportFormat';
-import { generateRapotPDF } from '../utils/pdfGenerator';
 import { RapotPreviewModal } from './RapotPreviewModal';
+import { SertifikatTahfizModal } from './SertifikatTahfizModal';
+import { generateRapotPDF, isClassWithoutIqro } from '../utils/pdfGenerator';
 
 interface StudentDashboardProps {
   reportData: StudentReportData;
@@ -37,6 +38,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   onUpdateReport,
 }) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isCertModalOpen, setIsCertModalOpen] = useState(false);
   const [selectedJuzTab, setSelectedJuzTab] = useState<number>(30);
 
   const { student, tahsin, tahfizRecords, adab, summaryHafalan } = reportData;
@@ -129,6 +131,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2.5 pt-2 md:pt-0 border-t md:border-t-0 border-emerald-700/50">
+            <button
+              onClick={() => setIsCertModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold shadow-lg transition-all cursor-pointer"
+              title="Lihat & Cetak Sertifikat Kelulusan Tahfiz Per Juz (Kertas A4)"
+            >
+              <Award className="w-4 h-4 text-slate-950" />
+              <span>Sertifikat Juz</span>
+            </button>
             <button
               onClick={() => setIsPreviewOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-semibold border border-white/20 transition-all cursor-pointer"
@@ -456,8 +466,35 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
         {/* Right 1 Col: Tahsin Breakdown & Adab */}
         <div className="space-y-6">
-          {/* Tahsin Detailed Card - Metode Iqro AMM */}
+          {/* Tahsin Detailed Card - Metode Iqro AMM (Kecuali Kelas 8C dan 9C yang Bebas Kolom Iqro) */}
           <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-xs">
+            {isClassWithoutIqro(student.className) ? (
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <Award className="w-5 h-5 text-emerald-700" />
+                      Fokus Kurikulum Tahfiz Al-Qur'an
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Kelas {student.className}: Kurikulum Khusus Tahfiz 30 Juz (Bebas Kolom Iqro' AMM)
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                    Khatam / Munaqasyah
+                  </span>
+                </div>
+                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-950 space-y-1.5">
+                  <p className="font-semibold leading-relaxed">
+                    Alhamdulillah, santri kelas {student.className} telah menuntaskan kurikulum tilawah dasar dan difokuskan penuh pada akselerasi kelancaran hafalan Al-Qur'an (Tahfiz) serta persiapan munaqasyah tasmi' bil ghaib.
+                  </p>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    ✓ Lembar rapot resmi untuk kelas {student.className} tidak memuat kolom buku Iqro' AMM Yogyakarta.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="flex items-start justify-between gap-2 mb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -610,6 +647,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               <span className="font-bold text-emerald-900 block mb-1">Catatan Tilawah & Ustadz:</span>
               <p className="italic">"{tahsin.notes || 'Pertahankan bacaan tartil dan perbanyak tilawah harian.'}"</p>
             </div>
+            </>
+          )}
           </div>
 
           {/* Adab & Karakter Qur'ani Card */}
@@ -644,6 +683,24 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             </div>
           </div>
 
+          {/* Sertifikat Kelulusan Tahfiz Per Juz Card */}
+          <div className="bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800 text-white rounded-2xl p-5 text-center space-y-3 shadow-md border border-amber-500/40">
+            <div className="w-10 h-10 rounded-xl bg-white/20 text-white flex items-center justify-center mx-auto shadow-inner">
+              <Award className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-sm">Sertifikat Tahfiz Per Juz</h4>
+            <p className="text-xs text-amber-100">
+              Syahadah resmi kelulusan hafalan per Juz Al-Azhar 9 lengkap dengan tanda tangan Kepala Sekolah.
+            </p>
+            <button
+              onClick={() => setIsCertModalOpen(true)}
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-amber-50 text-amber-950 text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
+            >
+              <Award className="w-4 h-4 text-amber-700" />
+              Buka & Unduh Sertifikat (A4)
+            </button>
+          </div>
+
           {/* Download Rapot Quick Card */}
           <div className="bg-emerald-900 text-white rounded-2xl p-5 text-center space-y-3 shadow-md">
             <h4 className="font-bold text-sm">Laporan Rapot Resmi (Kertas A4)</h4>
@@ -671,6 +728,17 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         teacherName={teacherName}
         onUpdateSettings={onUpdateSettings}
         onUpdateReport={onUpdateReport}
+      />
+
+      {/* Sertifikat Kelulusan Tahfiz Per Juz Modal */}
+      <SertifikatTahfizModal
+        isOpen={isCertModalOpen}
+        onClose={() => setIsCertModalOpen(false)}
+        student={student}
+        report={reportData}
+        settings={settings}
+        teacherName={teacherName}
+        defaultJuz={summaryHafalan.juzCompleted?.[0] || 30}
       />
     </div>
   );

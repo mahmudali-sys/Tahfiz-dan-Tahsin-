@@ -24,6 +24,7 @@ import { RapotPreviewModal } from './RapotPreviewModal';
 import { QuranSimakanModal } from './QuranSimakanModal';
 import { BulkStudentImportModal } from './BulkStudentImportModal';
 import { AttendanceAndHafalanModal } from './AttendanceAndHafalanModal';
+import { SertifikatTahfizModal } from './SertifikatTahfizModal';
 import { formatToIndonesianDate, getTodayIso, toIsoDate } from './IndonesianDatePicker';
 import { TahfizSurahRecord } from '../types';
 import { SMPIA9_VALID_CLASSES } from '../utils/studentImporter';
@@ -57,6 +58,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   // Modals
   const [selectedStudentForGrading, setSelectedStudentForGrading] = useState<StudentReportData | null>(null);
   const [selectedStudentForPreview, setSelectedStudentForPreview] = useState<StudentReportData | null>(null);
+  const [selectedStudentForCert, setSelectedStudentForCert] = useState<StudentReportData | null>(null);
   const [simakanStudent, setSimakanStudent] = useState<Student | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
@@ -313,14 +315,25 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           )}
 
           {filteredStudents.length > 0 && (
-            <button
-              onClick={() => setSimakanStudent(filteredStudents[0])}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
-              title="Buka Lembaran Mushaf Al-Qur'an untuk menyimak & koreksi hafalan santri (Makhorijul Huruf, Tajwid, Mad)"
-            >
-              <BookOpen className="w-4 h-4 text-emerald-300" />
-              <span>Koreksi Tasmi' Al-Qur'an</span>
-            </button>
+            <>
+              <button
+                onClick={() => setSimakanStudent(filteredStudents[0])}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+                title="Buka Lembaran Mushaf Al-Qur'an untuk menyimak & koreksi hafalan santri (Makhorijul Huruf, Tajwid, Mad)"
+              >
+                <BookOpen className="w-4 h-4 text-emerald-300" />
+                <span>Koreksi Tasmi' Al-Qur'an</span>
+              </button>
+
+              <button
+                onClick={() => setSelectedStudentForCert(reports[filteredStudents[0].id])}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+                title="Cetak & Unduh Sertifikat Kelulusan Tahfiz Per Juz Resmi (Kertas A4)"
+              >
+                <Award className="w-4 h-4 text-amber-200" />
+                <span>Sertifikat Tahfiz Juz</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -534,6 +547,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         >
                           <Download className="w-4 h-4" />
                         </button>
+
+                        {/* Cetak Sertifikat Tahfiz Per Juz Button */}
+                        <button
+                          onClick={() => setSelectedStudentForCert(report)}
+                          className="p-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-100/80 rounded-lg transition-colors cursor-pointer"
+                          title="Cetak & Unduh Sertifikat Kelulusan Tahfiz Per Juz Resmi (Kertas A4)"
+                        >
+                          <Award className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -589,6 +611,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           student={simakanStudent}
           teacherName={currentTeacher.name}
           onSaveTahfizResult={handleSaveSimakanResult}
+          settings={settings}
+          report={reports[simakanStudent.id]}
         />
       )}
 
@@ -623,6 +647,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           initialStudentId={modalInitialStudentId}
           initialAttendanceDate={attendanceDate}
           onSaveAttendanceAndSetoran={handleSaveAttendanceAndSetoran}
+        />
+      )}
+
+      {/* Sertifikat Kelulusan Tahfiz Per Juz Modal */}
+      {selectedStudentForCert && (
+        <SertifikatTahfizModal
+          isOpen={!!selectedStudentForCert}
+          onClose={() => setSelectedStudentForCert(null)}
+          student={selectedStudentForCert.student}
+          report={selectedStudentForCert}
+          settings={settings}
+          teacherName={currentTeacher.name}
+          defaultJuz={selectedStudentForCert.summaryHafalan?.juzCompleted?.[0] || 30}
         />
       )}
     </div>

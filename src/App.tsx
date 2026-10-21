@@ -96,7 +96,14 @@ export default function App() {
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    return saved ? JSON.parse(saved) : INITIAL_SCHOOL_SETTINGS;
+    const parsed = saved ? JSON.parse(saved) : INITIAL_SCHOOL_SETTINGS;
+    if (!parsed.principalName || parsed.principalName.includes('Ahmad Sudrajat')) {
+      parsed.principalName = 'Andi Krisdianto, S.Pd.I';
+      try {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(parsed));
+      } catch {}
+    }
+    return parsed;
   });
 
   const [currentTeacherId, setCurrentTeacherId] = useState<string>(() => {

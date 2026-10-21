@@ -13,7 +13,7 @@ import {
   getExamResultRows,
 } from '../data/alazharReportFormat';
 
-function drawAlAzharLogo(doc: jsPDF, x: number, y: number, radius: number) {
+export function drawAlAzharLogo(doc: jsPDF, x: number, y: number, radius: number) {
   // Outer Blue Circle
   doc.setFillColor(0, 102, 153);
   doc.circle(x, y, radius, 'F');
@@ -37,7 +37,7 @@ function drawAlAzharLogo(doc: jsPDF, x: number, y: number, radius: number) {
   doc.circle(x + radius * 0.15, y - radius * 0.05, radius * 0.12, 'F');
 }
 
-function drawYPIALogo(doc: jsPDF, x: number, y: number, radius: number) {
+export function drawYPIALogo(doc: jsPDF, x: number, y: number, radius: number) {
   // Outer Green Circle
   doc.setFillColor(0, 128, 64);
   doc.circle(x, y, radius, 'F');
@@ -61,6 +61,12 @@ function drawYPIALogo(doc: jsPDF, x: number, y: number, radius: number) {
   doc.circle(x, y - radius * 0.28, radius * 0.14, 'F');
   doc.setFillColor(0, 128, 64);
   doc.circle(x, y - radius * 0.23, radius * 0.11, 'F');
+}
+
+export function isClassWithoutIqro(className?: string): boolean {
+  if (!className) return false;
+  const clean = className.trim().toUpperCase().replace(/\s+/g, '');
+  return clean === '8C' || clean === '9C' || clean === 'KELAS8C' || clean === 'KELAS9C' || clean.includes('8C') || clean.includes('9C');
 }
 
 export function generateRapotPDF(
@@ -201,22 +207,26 @@ export function generateRapotPDF(
 
   currentY += 4.2;
 
-  // 3. A. MATERI PELAJARAN -> 1. TAHSIN
+  const skipIqroTahsin = isClassWithoutIqro(student.className);
+
+  // 3. A. MATERI PELAJARAN
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
   doc.setTextColor(15, 15, 15);
   doc.text('A. Materi Pelajaran', leftMargin, currentY);
   currentY += 3.4;
-  doc.text('1. Tahsin (Evaluasi Pembelajaran Metode Iqro\' AMM Yogyakarta)', leftMargin + 2, currentY);
-  currentY += 1.2;
 
-  // BANGUN TABEL TAHSIN (Mulai dari Jilid 1 sampai 6 Sesuai Permintaan)
-  const curriculum = getTahsinCurriculum(startJilid);
-  const totalTahsinAspectRows = curriculum.reduce((sum, g) => sum + g.aspects.length, 0);
+  if (!skipIqroTahsin) {
+    doc.text('1. Tahsin (Evaluasi Pembelajaran Metode Iqro\' AMM Yogyakarta)', leftMargin + 2, currentY);
+    currentY += 1.2;
 
-  // Bangun body row dengan rowSpan presisi
-  const tahsinTableBody: any[] = [];
-  let isFirstRowOfAll = true;
+    // BANGUN TABEL TAHSIN (Mulai dari Jilid 1 sampai 6 Sesuai Permintaan)
+    const curriculum = getTahsinCurriculum(startJilid);
+    const totalTahsinAspectRows = curriculum.reduce((sum, g) => sum + g.aspects.length, 0);
+
+    // Bangun body row dengan rowSpan presisi
+    const tahsinTableBody: any[] = [];
+    let isFirstRowOfAll = true;
 
   curriculum.forEach((jilidGroup) => {
     const jilidRowsCount = jilidGroup.aspects.length;
@@ -391,6 +401,14 @@ export function generateRapotPDF(
   doc.setTextColor(15, 15, 15);
   doc.text('2. Tahfiz', leftMargin + 2, currentY);
   currentY += 1.2;
+} else {
+  // Khusus Kelas 8C dan 9C: Rapot tidak memakai kolom Tahsin dari buku Iqro' AMM Yogyakarta
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(15, 15, 15);
+  doc.text('Tahfiz Al-Qur\'an', leftMargin + 2, currentY);
+  currentY += 1.5;
+}
 
   // Helper untuk lookup nilai siswa pada surah
   const findSurahScore = (surahNumber: number, surahName: string) => {
@@ -589,9 +607,11 @@ export function generateRapotPDF(
   // @ts-ignore
   currentY = doc.lastAutoTable.finalY + 2.2;
 
-  // 6. FOOTER: RENTANG NILAI (KIRI) & TANDA TANGAN (KANAN)
+  // 6. FOOTER: RENTANG NILAI (KIRI) & TANDA TANGAN (3 KOLOM RESMI: ORANG TUA, KOORDINATOR TAHFIZ, KEPALA SEKOLAH)
   const footerLeftX = leftMargin + 2;
-  const footerRightX = pageWidth - rightMargin - 40;
+  const colOrtuX = leftMargin + 20;
+  const colCoordX = 106;
+  const colPrincX = pageWidth - rightMargin - 32;
 
   // Header Rentang Nilai
   doc.setFont('helvetica', 'bold');
@@ -599,16 +619,14 @@ export function generateRapotPDF(
   doc.setTextColor(10, 10, 10);
   doc.text('RENTANG NILAI', footerLeftX, currentY);
 
-  // Tanggal & Jabatan (Kanan)
+  // Tanggal di atas Tanda Tangan Kepala Sekolah (Kanan)
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.2);
-  doc.text(`${settings.city || 'Bekasi'}, ${settings.reportDate || '22 Desember 2025'}`, footerRightX, currentY, {
+  doc.text(`${settings.city || 'Bekasi'}, ${settings.reportDate || '22 Desember 2025'}`, colPrincX, currentY, {
     align: 'center',
   });
 
-  currentY += 3.2;
-  doc.setFont('helvetica', 'normal');
-  doc.text(settings.coordinatorTitle || 'Koordinator Tahfiz', footerRightX, currentY, { align: 'center' });
+  currentY += 2.8;
 
   // 5 Baris Kriteria Rentang Nilai
   const rentangLines = [
@@ -626,28 +644,32 @@ export function generateRapotPDF(
     doc.setFont('helvetica', 'normal');
     doc.text(item.label, footerLeftX + 17, currentY);
     doc.text(item.desc, footerLeftX + 37, currentY);
-    currentY += 2.5;
+    currentY += 2.4;
   });
 
-  currentY += 2.5;
+  currentY += 2.2;
 
-  // Orang Tua/Wali di sebelah kiri
+  // Baris Judul Jabatan Tanda Tangan
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.2);
-  doc.text('Orang Tua/Wali,', footerLeftX, currentY);
+  doc.setFontSize(7.0);
+  doc.text('Orang Tua/Wali,', colOrtuX, currentY, { align: 'center' });
+  doc.text(settings.coordinatorTitle || 'Koordinator Tahfiz,', colCoordX, currentY, { align: 'center' });
+  doc.text('Kepala SMP Islam Al Azhar 9,', colPrincX, currentY, { align: 'center' });
 
   // Ruang Tanda Tangan
-  currentY += 10;
+  currentY += 9.5;
 
-  // Tanda tangan Orang Tua (Kiri)
+  // Baris Nama Pejabat
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.2);
-  doc.text('(____________________________)', footerLeftX, currentY);
+  doc.setFontSize(7.0);
+  doc.text('(____________________________)', colOrtuX, currentY, { align: 'center' });
 
-  // Tanda tangan Koordinator Tahfiz (Kanan)
   doc.setFont('helvetica', 'bold');
   const coordinatorDisplay = settings.coordinatorName || teacherName || 'Mahmud Ali Yafi, S.S, M.Pd.I.';
-  doc.text(coordinatorDisplay, footerRightX, currentY, { align: 'center' });
+  doc.text(coordinatorDisplay, colCoordX, currentY, { align: 'center' });
+
+  const principalDisplay = settings.principalName || 'Andi Krisdianto, S.Pd.I';
+  doc.text(principalDisplay, colPrincX, currentY, { align: 'center' });
 
   // GARANSI MUTLAK: Rapot Harus 1 Lembar Saja!
   // Jika ada halaman ke-2 akibat kalkulasi millimeter minor, hapus halaman selanjutnya:
