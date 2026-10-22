@@ -143,7 +143,6 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
     window.print();
   };
 
-  const coordinatorName = settings.coordinatorName || teacherName || 'Mahmud Ali Yafi, S.S, M.Pd.I.';
   const principalName = settings.principalName || 'Andi Krisdianto, S.Pd.I';
   const principalNip = settings.principalNip || '19760812 200212 1 003';
 
@@ -175,7 +174,7 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
             max-height: 210mm !important;
             min-height: 210mm !important;
             box-sizing: border-box !important;
-            padding: 8mm 12mm !important;
+            padding: 7mm 12mm 6mm 12mm !important;
             margin: 0 auto !important;
             border: 4px solid #B8860B !important;
             background-color: #FEFCF6 !important;
@@ -185,6 +184,7 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+            overflow: hidden !important;
           }
         }
       `}</style>
@@ -286,7 +286,7 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
           {/* THE OFFICIAL CERTIFICATE SHEET (A4 LANDSCAPE: 297mm x 210mm) */}
           <div
             id="official-certificate-sheet"
-            className="w-full max-w-[960px] bg-[#FEFCF6] p-6 sm:p-8 shadow-2xl text-slate-900 font-sans leading-tight relative border-4 border-[#B8860B] rounded-sm print:shadow-none"
+            className="w-full max-w-[960px] bg-[#FEFCF6] p-4 sm:p-6 md:p-7 shadow-2xl text-slate-900 font-sans leading-tight relative border-4 border-[#B8860B] rounded-sm print:shadow-none box-border overflow-hidden flex flex-col justify-between"
             style={{
               aspectRatio: '297 / 210',
             }}
@@ -310,21 +310,21 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
             </div>
 
             {/* KOP SURAT RESMI (SESUAI RAPOT AL-AZHAR 9) */}
-            <div className="relative pb-2 mb-3">
-              <div className="flex items-center justify-between px-6 sm:px-10 gap-3">
+            <div className="relative pb-1.5 mb-1.5 sm:mb-2">
+              <div className="flex items-center justify-between px-4 sm:px-8 gap-2">
                 {/* Logo Kiri: Al Azhar */}
-                <div className="w-16 h-16 sm:w-18 sm:h-18 flex items-center justify-center shrink-0">
+                <div className="w-13 h-13 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
                   {settings.schoolLogo ? (
                     <img
                       src={settings.schoolLogo}
                       alt="Logo Sekolah"
-                      className="w-16 h-16 sm:w-18 sm:h-18 object-contain rounded-full border border-slate-300 shadow-xs bg-white p-0.5"
+                      className="w-13 h-13 sm:w-16 sm:h-16 object-contain rounded-full border border-slate-300 shadow-xs bg-white p-0.5"
                     />
                   ) : (
-                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-[#006699] flex items-center justify-center border-2 border-white shadow-xs p-1">
+                    <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-[#006699] flex items-center justify-center border-2 border-white shadow-xs p-1">
                       <div className="w-full h-full rounded-full border border-white flex flex-col items-center justify-center text-white">
-                        <span className="text-[8.5px] font-bold uppercase tracking-tighter">AL-AZHAR</span>
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-400 mt-0.5"></div>
+                        <span className="text-[7.5px] sm:text-[8px] font-bold uppercase tracking-tighter">AL-AZHAR</span>
+                        <div className="w-2 h-2 rounded-full bg-amber-400 mt-0.5"></div>
                       </div>
                     </div>
                   )}
@@ -332,36 +332,36 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
 
                 {/* Teks Kop Tengah */}
                 <div className="text-center flex-1 px-1">
-                  <h4 className="text-[10px] sm:text-[11px] font-bold tracking-tight text-slate-800 uppercase">
+                  <h4 className="text-[9px] sm:text-[10px] md:text-[11px] font-bold tracking-tight text-slate-800 uppercase">
                     YAYASAN PESANTREN ISLAM AL-AZHAR
                   </h4>
-                  <h5 className="text-[9px] sm:text-[10px] text-slate-600 font-semibold uppercase mt-0.5">
+                  <h5 className="text-[8px] sm:text-[9px] text-slate-600 font-semibold uppercase mt-0.5">
                     DIREKTORAT PENDIDIKAN DASAR DAN MENENGAH
                   </h5>
-                  <h2 className="text-[15px] sm:text-[18px] font-black text-[#006699] uppercase tracking-tight mt-0.5 leading-snug">
+                  <h2 className="text-[13px] sm:text-[16px] md:text-[17px] font-black text-[#006699] uppercase tracking-tight mt-0.5 leading-snug">
                     {settings.schoolName || 'SMP ISLAM AL AZHAR 9 BEKASI'}
                   </h2>
-                  <p className="text-[8.5px] sm:text-[9.5px] text-slate-700 font-bold mt-0.5">
+                  <p className="text-[7.5px] sm:text-[8.5px] text-slate-700 font-bold mt-0.5">
                     STATUS TERAKREDITASI "A"
                   </p>
-                  <p className="text-[8px] sm:text-[9px] text-slate-600 mt-0.5 truncate max-w-xl mx-auto">
+                  <p className="text-[7px] sm:text-[8px] md:text-[8.5px] text-slate-600 mt-0.5 truncate max-w-xl mx-auto">
                     {settings.address || 'Jl. Kemang Pratama Raya No. 1, Rawalumbu, Kota Bekasi 17116 Telp. (021) 82414144'}
                   </p>
                 </div>
 
                 {/* Logo Kanan: YPIA */}
-                <div className="w-16 h-16 sm:w-18 sm:h-18 flex items-center justify-center shrink-0">
+                <div className="w-13 h-13 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
                   {settings.foundationLogo ? (
                     <img
                       src={settings.foundationLogo}
                       alt="Logo Yayasan"
-                      className="w-16 h-16 sm:w-18 sm:h-18 object-contain rounded-full border border-slate-300 shadow-xs bg-white p-0.5"
+                      className="w-13 h-13 sm:w-16 sm:h-16 object-contain rounded-full border border-slate-300 shadow-xs bg-white p-0.5"
                     />
                   ) : (
-                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-[#008040] flex items-center justify-center border-2 border-white shadow-xs p-1">
+                    <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-[#008040] flex items-center justify-center border-2 border-white shadow-xs p-1">
                       <div className="w-full h-full rounded-full border border-white flex flex-col items-center justify-center text-white">
-                        <span className="text-[8.5px] font-bold uppercase tracking-tighter">YPIA</span>
-                        <div className="w-3 h-2.5 rounded-t-full bg-white mt-0.5"></div>
+                        <span className="text-[7.5px] sm:text-[8px] font-bold uppercase tracking-tighter">YPIA</span>
+                        <div className="w-2.5 h-2 rounded-t-full bg-white mt-0.5"></div>
                       </div>
                     </div>
                   )}
@@ -369,35 +369,35 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
               </div>
 
               {/* Garis Ganda Pembatas Kop Surat Sesuai Rapot Resmi (Tebal Atas, Tipis Bawah) */}
-              <div className="mt-2 mx-6 sm:mx-10 border-b-2 border-black"></div>
-              <div className="mt-0.5 mx-6 sm:mx-10 border-b border-black"></div>
+              <div className="mt-1.5 mx-4 sm:mx-8 border-b-2 border-black"></div>
+              <div className="mt-0.5 mx-4 sm:mx-8 border-b border-black"></div>
             </div>
 
             {/* JUDUL SERTIFIKAT RESMI */}
-            <div className="text-center space-y-1 mb-3">
-              <h1 className="text-xl sm:text-2xl font-black text-emerald-900 uppercase tracking-wide">
+            <div className="text-center space-y-0.5 mb-1.5 sm:mb-2">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-black text-emerald-900 uppercase tracking-wide">
                 SYAHADAH TAHFIZ AL-QUR'AN
               </h1>
-              <h3 className="text-xs sm:text-sm font-extrabold text-[#B8860B] uppercase tracking-wider">
+              <h3 className="text-[11px] sm:text-xs md:text-sm font-extrabold text-[#B8860B] uppercase tracking-wider">
                 SERTIFIKAT KELULUSAN HAFALAN TAHFIZ PER JUZ
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 font-mono">
+              <p className="text-[9px] sm:text-[10px] text-slate-500 font-mono">
                 Nomor: {certData.certificateNumber}
               </p>
             </div>
 
             {/* BADAN SERTIFIKAT */}
-            <div className="text-center space-y-2 max-w-3xl mx-auto px-4">
-              <p className="text-xs text-slate-700">
+            <div className="text-center space-y-1 sm:space-y-1.5 max-w-3xl mx-auto px-3">
+              <p className="text-[11px] sm:text-xs text-slate-700">
                 Direktorat Pendidikan SMP Islam Al Azhar 9 Bekasi menerangkan dengan sesungguhnya bahwa:
               </p>
 
               {/* Nama Santri */}
-              <div className="py-1">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-normal border-b-2 border-amber-400 inline-block px-4 pb-0.5">
+              <div className="py-0.5">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-900 uppercase tracking-normal border-b-2 border-amber-400 inline-block px-4 pb-0.5">
                   {student.name}
                 </h2>
-                <div className="text-[11px] text-slate-600 font-semibold mt-1 space-x-2">
+                <div className="text-[10px] sm:text-[11px] text-slate-600 font-semibold mt-0.5 space-x-2">
                   <span>NISN: {student.nisn || '-'}</span>
                   <span>•</span>
                   <span>NIS: {student.nis || '-'}</span>
@@ -406,80 +406,54 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
                 </div>
               </div>
 
-              <p className="text-xs text-slate-700">
+              <p className="text-[10.5px] sm:text-[11.5px] text-slate-700">
                 Telah mengikuti Ujian Tasmi' Bil Ghaib dan dinyatakan memenuhi seluruh standar kompetensi tahfiz dengan predikat:
               </p>
 
               {/* KOTAK PENCAPAIAN JUZ */}
-              <div className="bg-gradient-to-r from-amber-50/80 via-emerald-50/50 to-amber-50/80 border-2 border-amber-300/80 rounded-2xl p-3 shadow-xs max-w-2xl mx-auto space-y-1">
-                <div className="text-base sm:text-lg font-black text-[#006699] uppercase tracking-tight flex items-center justify-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
+              <div className="bg-gradient-to-r from-amber-50/80 via-emerald-50/50 to-amber-50/80 border-2 border-amber-300/80 rounded-xl p-2 sm:p-2.5 shadow-xs max-w-2xl mx-auto space-y-0.5">
+                <div className="text-sm sm:text-base font-black text-[#006699] uppercase tracking-tight flex items-center justify-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                   <span>LULUS MUTQIN: JUZ {certData.juzNumber} ({certData.juzName})</span>
-                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 </div>
-                <p className="text-xs text-slate-600 font-medium">
+                <p className="text-[10px] sm:text-[11px] text-slate-600 font-medium">
                   {certData.surahRange} ({certData.totalSurah} Surah • {certData.totalAyat} Ayat)
                 </p>
-                <div className="flex items-center justify-center gap-3 pt-0.5 text-xs font-bold text-amber-900">
-                  <span>Nilai Tasmi': <strong className="text-emerald-900 font-mono text-sm">{certData.score}</strong></span>
+                <div className="flex items-center justify-center gap-3 pt-0.5 text-[10px] sm:text-xs font-bold text-amber-900">
+                  <span>Nilai Tasmi': <strong className="text-emerald-900 font-mono text-xs sm:text-sm">{certData.score}</strong></span>
                   <span>•</span>
                   <span>Predikat: <strong className="text-emerald-900 uppercase">{certData.predicate}</strong></span>
                   <span>•</span>
-                  <span className="bg-emerald-700 text-white px-2 py-0.2 rounded-full text-[10px]">MUTQIN</span>
+                  <span className="bg-emerald-700 text-white px-2 py-0.5 rounded-full text-[9px] font-bold">MUTQIN</span>
                 </div>
               </div>
 
               {/* Doa / Harapan */}
-              <p className="text-[10px] sm:text-[11px] text-slate-500 italic max-w-xl mx-auto pt-1">
+              <p className="text-[9.5px] sm:text-[10px] text-slate-500 italic max-w-xl mx-auto pt-0.5">
                 "Semoga hafalan Al-Qur'an yang telah diselesaikan senantiasa terjaga di dalam dada, menjadi syafa'at di yaumil akhir, serta berakhlak mulia dengan nilai-nilai Al-Qur'an."
               </p>
             </div>
 
-            {/* TANDA TANGAN RESMI KEPSEK & KOORDINATOR TAHFIZ */}
-            <div className="mt-5 px-8 sm:px-14 flex items-end justify-between text-xs text-slate-800">
-              {/* Kiri: Koordinator Tahfiz */}
-              <div className="text-center w-56 space-y-0.5">
-                <p className="text-slate-500 text-[11px]">Mengetahui,</p>
-                <p className="font-bold text-slate-800">Koordinator Tahfiz Al-Qur'an</p>
-                
-                {/* Space Tanda Tangan */}
-                <div className="h-16 flex items-center justify-center">
-                  <span className="text-[10px] text-slate-300 italic">Tanda Tangan Digital</span>
-                </div>
-
-                <p className="font-bold text-slate-900 border-b border-slate-700 inline-block px-1">
-                  {coordinatorName}
-                </p>
-                <p className="text-[10px] text-slate-500">
-                  NIP. 19850612 201101 1 003
-                </p>
-              </div>
-
-              {/* Tengah: Cap Stempel Resmi Al-Azhar */}
-              <div className="w-24 h-24 rounded-full border-2 border-amber-500/80 flex items-center justify-center p-1 bg-white shadow-2xs">
-                <div className="w-full h-full rounded-full border border-dashed border-amber-600 flex flex-col items-center justify-center text-center p-1">
-                  <span className="text-[6.5px] font-bold text-amber-800 uppercase leading-none">SMP ISLAM AL AZHAR 9</span>
-                  <span className="text-[9px] font-black text-emerald-800 my-0.5">★ MUTQIN ★</span>
-                  <span className="text-[6.5px] font-bold text-amber-800 uppercase leading-none">TAHFIZ QUR'AN</span>
-                </div>
-              </div>
-
-              {/* Kanan: Kepala Sekolah — Andi Krisdianto, S.Pd.I */}
-              <div className="text-center w-56 space-y-0.5">
-                <p className="text-slate-600 text-[11px]">
+            {/* TANDA TANGAN RESMI KEPALA SEKOLAH (TUNGGAL, KANAN BAWAH — PAS DALAM BINGKAI) */}
+            <div className="mt-2 sm:mt-3 px-6 sm:px-12 flex justify-end text-xs text-slate-800">
+              <div className="text-center w-56 sm:w-64 space-y-0.5">
+                <p className="text-slate-600 text-[10px] sm:text-[11px]">
                   Bekasi, {formatToIndonesianDate(certData.date, true)}
                 </p>
-                <p className="font-bold text-slate-800">Kepala SMP Islam Al Azhar 9 Bekasi</p>
+                <p className="font-bold text-slate-800 text-[11px] sm:text-xs">
+                  Kepala SMP Islam Al Azhar 9 Bekasi
+                </p>
                 
                 {/* Space Tanda Tangan */}
-                <div className="h-16 flex items-center justify-center">
-                  <span className="text-[10px] text-slate-300 italic">Tanda Tangan & Cap Sekolah</span>
+                <div className="h-10 sm:h-12 flex items-center justify-center">
+                  <span className="text-[9px] text-slate-300 italic">Tanda Tangan Digital</span>
                 </div>
 
-                <p className="font-bold text-slate-900 border-b border-slate-700 inline-block px-1">
+                <p className="font-bold text-slate-900 text-xs sm:text-sm border-b border-slate-700 inline-block px-1">
                   {principalName}
                 </p>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[9.5px] sm:text-[10px] text-slate-500 font-medium">
                   NIP. {principalNip}
                 </p>
               </div>

@@ -406,77 +406,35 @@ export function generateCertificatePDF(
   const doaText = '"Semoga hafalan Al-Qur\'an yang telah diselesaikan senantiasa terjaga di dalam dada, menjadi syafa\'at di yaumil akhir, serta berakhlak mulia dengan nilai-nilai Al-Qur\'an."';
   doc.text(doaText, pageWidth / 2, 126, { align: 'center' });
 
-  // 5. TANGGAL & TANDA TANGAN RESMI
-  const footerY = 135;
-  const colLeftX = 60;
-  const colRightX = pageWidth - 60;
+  // 5. TANGGAL & TANDA TANGAN RESMI KEPALA SEKOLAH (TUNGGAL, KANAN BAWAH)
+  const footerY = 138;
+  const colRightX = pageWidth - 65;
 
-  // Tanggal di kanan atas tanda tangan Kepala Sekolah
+  // Tanggal di atas tanda tangan Kepala Sekolah
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(51, 65, 85);
   const certDateStr = certData.date ? formatToIndonesianDate(certData.date, true) : '20 Oktober 2026';
   doc.text(`Bekasi, ${certDateStr}`, colRightX, footerY, { align: 'center' });
 
-  // Jabatan Kiri: Koordinator Tahfiz
-  doc.setFont('helvetica', 'normal');
-  doc.text('Mengetahui,', colLeftX, footerY + 5, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.text('Koordinator Tahfiz Al-Qur\'an', colLeftX, footerY + 9.5, { align: 'center' });
-
-  // Jabatan Kanan: Kepala Sekolah
-  doc.setFont('helvetica', 'normal');
-  doc.text('Mengesahkan,', colRightX, footerY + 5, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.text('Kepala SMP Islam Al Azhar 9 Bekasi', colRightX, footerY + 9.5, { align: 'center' });
-
-  // Ruang Tanda Tangan & Cap Stempel
-  // Cap Stempel Bulat Emas di tengah bawah
-  const stampX = pageWidth / 2;
-  const stampY = footerY + 18;
-  doc.setDrawColor(218, 165, 32);
-  doc.setLineWidth(0.6);
-  doc.circle(stampX, stampY, 11);
-  doc.setLineWidth(0.2);
-  doc.circle(stampX, stampY, 9.8);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.5);
-  doc.setTextColor(184, 134, 11);
-  doc.text('SMP ISLAM AL AZHAR 9', stampX, stampY - 4, { align: 'center' });
-  doc.setFontSize(7.5);
-  doc.setTextColor(15, 81, 50);
-  doc.text('★ MUTQIN ★', stampX, stampY + 0.5, { align: 'center' });
-  doc.setFontSize(5.5);
-  doc.setTextColor(184, 134, 11);
-  doc.text('TAHFIZ QUR\'AN', stampX, stampY + 5, { align: 'center' });
-
-  // Nama Pejabat Tanda Tangan
-  const nameSignY = footerY + 34;
-
-  // Nama Koordinator Tahfiz (Kiri)
-  const coordinatorName = settings.coordinatorName || teacherName || 'Mahmud Ali Yafi, S.S, M.Pd.I.';
+  // Jabatan: Kepala Sekolah
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(coordinatorName, colLeftX, nameSignY, { align: 'center' });
-  doc.setDrawColor(71, 85, 105);
-  doc.setLineWidth(0.4);
-  const coordWidth = doc.getTextWidth(coordinatorName);
-  doc.line(colLeftX - coordWidth / 2, nameSignY + 1.2, colLeftX + coordWidth / 2, nameSignY + 1.2);
+  doc.text('Kepala SMP Islam Al Azhar 9 Bekasi', colRightX, footerY + 5.5, { align: 'center' });
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('NIP. 19850612 201101 1 003', colLeftX, nameSignY + 5, { align: 'center' });
-
-  // Nama Kepala Sekolah (Kanan) — Andi Krisdianto, S.Pd.I
+  // Nama Kepala Sekolah — Andi Krisdianto, S.Pd.I
   const principalName = settings.principalName || 'Andi Krisdianto, S.Pd.I';
   const principalNip = settings.principalNip || '19760812 200212 1 003';
+  const nameSignY = footerY + 25;
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
   doc.text(principalName, colRightX, nameSignY, { align: 'center' });
   const princWidth = doc.getTextWidth(principalName);
+  doc.setDrawColor(71, 85, 105);
+  doc.setLineWidth(0.4);
   doc.line(colRightX - princWidth / 2, nameSignY + 1.2, colRightX + princWidth / 2, nameSignY + 1.2);
 
   doc.setFont('helvetica', 'normal');
