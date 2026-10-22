@@ -135,8 +135,17 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
     };
   }, [selectedJuz, report]);
 
-  const handleDownloadPDF = () => {
-    generateCertificatePDF(student, certData, settings, teacherName);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      await generateCertificatePDF(student, certData, settings, teacherName);
+    } catch (err) {
+      console.error('Gagal generate PDF sertifikat:', err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handlePrint = () => {
@@ -254,11 +263,14 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
             {/* Tombol Unduh PDF */}
             <button
               onClick={handleDownloadPDF}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+              disabled={isGeneratingPdf}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer ${
+                isGeneratingPdf ? 'opacity-70 cursor-wait' : ''
+              }`}
               title="Unduh sertifikat kelulusan tahfiz format PDF ukuran kertas A4 Landscape"
             >
-              <Download className="w-4 h-4" />
-              <span>Unduh PDF (A4)</span>
+              <Download className={`w-4 h-4 ${isGeneratingPdf ? 'animate-bounce' : ''}`} />
+              <span>{isGeneratingPdf ? 'Membuat PDF...' : 'Unduh PDF (A4)'}</span>
             </button>
 
             {/* Tombol Cetak Langsung */}
@@ -309,68 +321,14 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
               <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
             </div>
 
-            {/* KOP SURAT RESMI (SESUAI RAPOT AL-AZHAR 9) */}
-            <div className="relative pb-1.5 mb-1.5 sm:mb-2">
-              <div className="flex items-center justify-between px-4 sm:px-8 gap-2">
-                {/* Logo Kiri: Al Azhar */}
-                <div className="w-13 h-13 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-                  {settings.schoolLogo ? (
-                    <img
-                      src={settings.schoolLogo}
-                      alt="Logo Sekolah"
-                      className="w-13 h-13 sm:w-16 sm:h-16 object-contain rounded-full border border-slate-300 shadow-xs bg-white p-0.5"
-                    />
-                  ) : (
-                    <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-[#006699] flex items-center justify-center border-2 border-white shadow-xs p-1">
-                      <div className="w-full h-full rounded-full border border-white flex flex-col items-center justify-center text-white">
-                        <span className="text-[7.5px] sm:text-[8px] font-bold uppercase tracking-tighter">AL-AZHAR</span>
-                        <div className="w-2 h-2 rounded-full bg-amber-400 mt-0.5"></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Teks Kop Tengah */}
-                <div className="text-center flex-1 px-1">
-                  <h4 className="text-[9px] sm:text-[10px] md:text-[11px] font-bold tracking-tight text-slate-800 uppercase">
-                    YAYASAN PESANTREN ISLAM AL-AZHAR
-                  </h4>
-                  <h5 className="text-[8px] sm:text-[9px] text-slate-600 font-semibold uppercase mt-0.5">
-                    DIREKTORAT PENDIDIKAN DASAR DAN MENENGAH
-                  </h5>
-                  <h2 className="text-[13px] sm:text-[16px] md:text-[17px] font-black text-[#006699] uppercase tracking-tight mt-0.5 leading-snug">
-                    {settings.schoolName || 'SMP ISLAM AL AZHAR 9 BEKASI'}
-                  </h2>
-                  <p className="text-[7.5px] sm:text-[8.5px] text-slate-700 font-bold mt-0.5">
-                    STATUS TERAKREDITASI "A"
-                  </p>
-                  <p className="text-[7px] sm:text-[8px] md:text-[8.5px] text-slate-600 mt-0.5 truncate max-w-xl mx-auto">
-                    {settings.address || 'Jl. Kemang Pratama Raya No. 1, Rawalumbu, Kota Bekasi 17116 Telp. (021) 82414144'}
-                  </p>
-                </div>
-
-                {/* Logo Kanan: YPIA */}
-                <div className="w-13 h-13 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-                  {settings.foundationLogo ? (
-                    <img
-                      src={settings.foundationLogo}
-                      alt="Logo Yayasan"
-                      className="w-13 h-13 sm:w-16 sm:h-16 object-contain rounded-full border border-slate-300 shadow-xs bg-white p-0.5"
-                    />
-                  ) : (
-                    <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-[#008040] flex items-center justify-center border-2 border-white shadow-xs p-1">
-                      <div className="w-full h-full rounded-full border border-white flex flex-col items-center justify-center text-white">
-                        <span className="text-[7.5px] sm:text-[8px] font-bold uppercase tracking-tighter">YPIA</span>
-                        <div className="w-2.5 h-2 rounded-t-full bg-white mt-0.5"></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Garis Ganda Pembatas Kop Surat Sesuai Rapot Resmi (Tebal Atas, Tipis Bawah) */}
-              <div className="mt-1.5 mx-4 sm:mx-8 border-b-2 border-black"></div>
-              <div className="mt-0.5 mx-4 sm:mx-8 border-b border-black"></div>
+            {/* KOP SURAT RESMI (AL MUHAJIRIEN JAKAPERMAI WAQF FOUNDATION - AL AZHAR 9) */}
+            <div className="relative pb-1 mb-1 sm:mb-1.5 w-full flex justify-center">
+              <img
+                id="certificate-official-kop"
+                src="/assets/aistudio/IMG_1417_e831045f.jpeg"
+                alt="Kop Resmi Al Muhajirien Jakapermai Waqf Foundation - Al Azhar 9 Islamic Junior High School"
+                className="w-full max-w-[580px] sm:max-w-[660px] md:max-w-[700px] h-auto object-contain mix-blend-multiply"
+              />
             </div>
 
             {/* JUDUL SERTIFIKAT RESMI */}
