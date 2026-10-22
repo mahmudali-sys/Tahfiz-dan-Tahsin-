@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @media print {
+  /* Default Rapot: A4 Portrait */
   @page {
     size: A4 portrait;
     margin: 6mm 8mm 6mm 8mm;
@@ -16,6 +17,13 @@
     overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Khusus Sertifikat: A4 Landscape (297mm x 210mm) */
+  body.certificate-modal-open {
+    width: 297mm !important;
+    height: 210mm !important;
+    background: #FEFCF6 !important;
   }
 
   .no-print {
@@ -59,14 +67,22 @@
   }
 
   #official-certificate-sheet {
-    width: 100% !important;
-    max-width: 280mm !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    max-width: 297mm !important;
+    max-height: 210mm !important;
+    min-width: 297mm !important;
+    min-height: 210mm !important;
+    box-sizing: border-box !important;
     margin: 0 auto !important;
+    padding: 8mm 12mm !important;
     box-shadow: none !important;
     page-break-after: avoid !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     background: #FEFCF6 !important;
+    border: 4px solid #B8860B !important;
+    position: relative !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }

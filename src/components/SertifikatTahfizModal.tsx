@@ -97,6 +97,14 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
     return completedJuzList[0] || 30;
   });
 
+  // Pasang class di body agar print CSS A4 Landscape aktif
+  React.useEffect(() => {
+    document.body.classList.add('certificate-modal-open');
+    return () => {
+      document.body.classList.remove('certificate-modal-open');
+    };
+  }, []);
+
   // Hitung rata-rata nilai dan tanggal tasmi' untuk Juz yang dipilih
   const certData: JuzCertificateData = useMemo(() => {
     const meta = getJuzMetadata(selectedJuz);
@@ -141,6 +149,45 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+      {/* Scoped Print Style to strictly lock A4 Landscape (297mm x 210mm) */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 landscape !important;
+            margin: 0mm !important;
+          }
+          html, body {
+            width: 297mm !important;
+            height: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #FEFCF6 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          #official-certificate-sheet {
+            width: 297mm !important;
+            height: 210mm !important;
+            max-width: 297mm !important;
+            max-height: 210mm !important;
+            min-height: 210mm !important;
+            box-sizing: border-box !important;
+            padding: 8mm 12mm !important;
+            margin: 0 auto !important;
+            border: 4px solid #B8860B !important;
+            background-color: #FEFCF6 !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+      `}</style>
       <div className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[96vh]">
         
         {/* Top Action Header Bar */}
@@ -150,10 +197,13 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base flex items-center gap-2">
-                <span>Sertifikat Kelulusan Tahfiz Per Juz — Kertas A4</span>
+              <h3 className="font-bold text-sm sm:text-base flex flex-wrap items-center gap-2">
+                <span>Sertifikat Kelulusan Tahfiz Per Juz</span>
                 <span className="bg-emerald-800 text-emerald-100 text-[10px] px-2 py-0.5 rounded-full font-semibold">
                   Resmi Al-Azhar 9
+                </span>
+                <span className="bg-amber-900/60 text-amber-200 border border-amber-600/50 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  📄 Kertas A4 Landscape (297 × 210 mm)
                 </span>
               </h3>
               <p className="text-[11px] text-slate-400">
@@ -236,7 +286,7 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
           {/* THE OFFICIAL CERTIFICATE SHEET (A4 LANDSCAPE: 297mm x 210mm) */}
           <div
             id="official-certificate-sheet"
-            className="w-full max-w-[920px] bg-[#FEFCF6] p-6 sm:p-8 shadow-2xl text-slate-900 font-sans leading-tight relative border-4 border-[#B8860B] rounded-sm print:p-0 print:shadow-none print:max-w-none print:border-none"
+            className="w-full max-w-[960px] bg-[#FEFCF6] p-6 sm:p-8 shadow-2xl text-slate-900 font-sans leading-tight relative border-4 border-[#B8860B] rounded-sm print:shadow-none"
             style={{
               aspectRatio: '297 / 210',
             }}
@@ -419,7 +469,7 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
                 <p className="text-slate-600 text-[11px]">
                   Bekasi, {formatToIndonesianDate(certData.date, true)}
                 </p>
-                <p className="font-bold text-slate-800">Kepala SMP Islam Al Azhar 9</p>
+                <p className="font-bold text-slate-800">Kepala SMP Islam Al Azhar 9 Bekasi</p>
                 
                 {/* Space Tanda Tangan */}
                 <div className="h-16 flex items-center justify-center">

@@ -428,7 +428,7 @@ export function generateCertificatePDF(
   doc.setFont('helvetica', 'normal');
   doc.text('Mengesahkan,', colRightX, footerY + 5, { align: 'center' });
   doc.setFont('helvetica', 'bold');
-  doc.text('Kepala SMP Islam Al Azhar 9', colRightX, footerY + 9.5, { align: 'center' });
+  doc.text('Kepala SMP Islam Al Azhar 9 Bekasi', colRightX, footerY + 9.5, { align: 'center' });
 
   // Ruang Tanda Tangan & Cap Stempel
   // Cap Stempel Bulat Emas di tengah bawah
@@ -483,6 +483,11 @@ export function generateCertificatePDF(
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text(`NIP. ${principalNip}`, colRightX, nameSignY + 5, { align: 'center' });
+
+  // GARANSI STANDAR KERTAS A4: Sertifikat Harus Tepat 1 Lembar Saja!
+  while (doc.getNumberOfPages() > 1) {
+    doc.deletePage(doc.getNumberOfPages());
+  }
 
   // Simpan file sertifikat PDF
   const safeName = student.name.replace(/[^a-zA-Z0-9]/g, '_');

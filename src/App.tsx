@@ -97,8 +97,9 @@ export default function App() {
   const [settings, setSettings] = useState<SchoolSettings>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     const parsed = saved ? JSON.parse(saved) : INITIAL_SCHOOL_SETTINGS;
-    if (!parsed.principalName || parsed.principalName.includes('Ahmad Sudrajat')) {
+    if (!parsed.principalName || parsed.principalName !== 'Andi Krisdianto, S.Pd.I') {
       parsed.principalName = 'Andi Krisdianto, S.Pd.I';
+      parsed.principalNip = '19760812 200212 1 003';
       try {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(parsed));
       } catch {}
