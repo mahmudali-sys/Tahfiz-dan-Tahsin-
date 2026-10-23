@@ -227,7 +227,8 @@ export async function generateCertificatePDF(
   student: Student,
   certData: JuzCertificateData,
   settings: SchoolSettings,
-  _teacherName?: string
+  _teacherName?: string,
+  customJuzLabel?: string
 ) {
   // A4 Landscape: 297mm x 210mm
   const doc = new jsPDF({
@@ -293,16 +294,18 @@ export async function generateCertificatePDF(
     ctx.fillText(student.name, centerX, 545);
     ctx.restore();
 
-    // 3. Render Pernyataan Tasmi' Bil Ghaib
+    // 3. Render Pernyataan Tes Hafalan Al-Qur'an
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Baris 1: Selamat telah melaksanakan Tasmi' Al-Qur'an Juz X dalam sekali duduk
+    const testedJuzText = customJuzLabel?.trim() || `Juz ${certData.juzNumber}`;
+
+    // Baris 1: Selamat telah melaksanakan Tes Hafalan Al-Qur'an Juz X
     ctx.font = "bold 23px 'Plus Jakarta Sans', 'Arial', sans-serif";
     ctx.fillStyle = '#1e293b';
     ctx.fillText(
-      `Selamat telah melaksanakan Tasmi' Al-Qur'an Juz ${certData.juzNumber} dalam sekali duduk`,
+      `Selamat telah melaksanakan Tes Hafalan Al-Qur'an ${testedJuzText}`,
       centerX,
       675
     );
@@ -334,6 +337,8 @@ export async function generateCertificatePDF(
       doc.rect(0, 0, pageWidth, pageHeight, 'F');
     }
 
+    const testedJuzText = customJuzLabel?.trim() || `Juz ${certData.juzNumber}`;
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(197, 155, 39); // Emas #C59B27
@@ -343,7 +348,7 @@ export async function generateCertificatePDF(
     doc.setFontSize(10);
     doc.setTextColor(30, 41, 59);
     doc.text(
-      `Selamat telah melaksanakan Tasmi' Al-Qur'an Juz ${certData.juzNumber} dalam sekali duduk`,
+      `Selamat telah melaksanakan Tes Hafalan Al-Qur'an ${testedJuzText}`,
       pageWidth / 2,
       128,
       { align: 'center' }

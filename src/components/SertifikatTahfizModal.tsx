@@ -97,6 +97,14 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
     return completedJuzList[0] || 30;
   });
 
+  const [customJuzText, setCustomJuzText] = useState<string>(() => `Juz ${defaultJuz || completedJuzList[0] || 30}`);
+  const testedJuzLabel = customJuzText.trim() ? customJuzText : `Juz ${selectedJuz}`;
+
+  const handleJuzChange = (jNum: number) => {
+    setSelectedJuz(jNum);
+    setCustomJuzText(`Juz ${jNum}`);
+  };
+
   // Pasang class di body agar print CSS A4 Landscape aktif
   React.useEffect(() => {
     document.body.classList.add('certificate-modal-open');
@@ -140,7 +148,7 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
   const handleDownloadPDF = async () => {
     try {
       setIsGeneratingPdf(true);
-      await generateCertificatePDF(student, certData, settings, teacherName);
+      await generateCertificatePDF(student, certData, settings, teacherName, testedJuzLabel);
     } catch (err) {
       console.error('Gagal generate PDF sertifikat:', err);
     } finally {
@@ -227,7 +235,7 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
               <span className="text-slate-400 font-semibold text-[11px]">Pilih Juz:</span>
               <select
                 value={selectedJuz}
-                onChange={(e) => setSelectedJuz(Number(e.target.value))}
+                onChange={(e) => handleJuzChange(Number(e.target.value))}
                 className="bg-slate-900 text-amber-300 font-bold px-2 py-1 rounded-lg border border-slate-600 focus:outline-none focus:border-amber-400 cursor-pointer text-xs"
               >
                 {Array.from({ length: 30 }, (_, idx) => 30 - idx).map((jNum) => {
@@ -242,13 +250,26 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
               </select>
             </div>
 
+            {/* Editable Juz yang Diujikan */}
+            <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700 text-xs">
+              <span className="text-slate-400 font-semibold text-[11px]">Juz Diujikan:</span>
+              <input
+                type="text"
+                value={customJuzText}
+                onChange={(e) => setCustomJuzText(e.target.value)}
+                placeholder={`Juz ${selectedJuz}`}
+                className="w-24 sm:w-28 bg-slate-900 text-amber-300 font-bold px-2 py-1 rounded-lg border border-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                title="Keterangan Juz yang diujikan (otomatis terisi dari pilihan Juz, dapat disesuaikan)"
+              />
+            </div>
+
             {/* Quick Juz Tabs */}
             <div className="hidden lg:inline-flex items-center bg-slate-800 p-0.5 rounded-xl border border-slate-700 text-xs">
               {completedJuzList.slice(0, 4).map((j) => (
                 <button
                   key={j}
                   type="button"
-                  onClick={() => setSelectedJuz(j)}
+                  onClick={() => handleJuzChange(j)}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                     selectedJuz === j
                       ? 'bg-amber-500 text-slate-950 shadow-xs'
@@ -303,11 +324,11 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
               aspectRatio: '1550 / 1106',
             }}
           >
-            {/* Background Template Resmi dengan Bingkai Emas & Biru, Logo Al-Azhar & YPIA, Watermark Qur'an, Badge Cambridge, Stempel & Tanda Tangan Kepala Sekolah Andi Krisdianto, S.Pd.I */}
+            {/* Background Template Resmi dengan Bingkai Emas & Biru, Logo Al-Azhar & YPIA, Watermark Qur'an, Badge Cambridge, dan Kepala Sekolah Andi Krisdianto, S.Pd.I */}
             <img
               id="certificate-official-bg"
               src="/assets/cert_tahfiz_official.png"
-              alt="Sertifikat Tahfiz Juziyyah SMP Islam Al Azhar 9"
+              alt="Sertifikat Tahfiz SMP Islam Al Azhar 9"
               className="absolute inset-0 w-full h-full object-fill pointer-events-none"
             />
 
@@ -329,13 +350,13 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
                 </h2>
               </div>
 
-              {/* Keterangan Pelaksanaan Tasmi' Bil Ghaib Sekali Duduk */}
+              {/* Keterangan Pelaksanaan Tes Hafalan Al-Qur'an */}
               <div 
                 className="absolute left-0 right-0 px-8 text-center flex flex-col items-center justify-center -translate-y-1/2 space-y-1 sm:space-y-1.5 print:space-y-1"
                 style={{ top: '62.8%' }}
               >
                 <p className="text-slate-800 font-sans text-xs sm:text-sm md:text-[15px] lg:text-[16px] print:text-[13pt] font-bold leading-tight max-w-2xl mx-auto">
-                  Selamat telah melaksanakan Tasmi' Al-Qur'an <span className="font-extrabold text-slate-900">Juz {selectedJuz}</span> dalam sekali duduk
+                  Selamat telah melaksanakan Tes Hafalan Al-Qur'an <span className="font-extrabold text-slate-900">{testedJuzLabel}</span>
                 </p>
                 <p className="text-slate-600 font-sans text-[10px] sm:text-xs md:text-[12.5px] lg:text-[13.5px] print:text-[10pt] font-medium leading-tight max-w-2xl mx-auto">
                   Semoga penghargaan ini menjadi motivasi untuk menambah dan memelihara hafalan dengan baik.
