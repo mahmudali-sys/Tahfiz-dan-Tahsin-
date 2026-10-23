@@ -183,10 +183,10 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
             max-height: 210mm !important;
             min-height: 210mm !important;
             box-sizing: border-box !important;
-            padding: 5mm 10mm 4mm 10mm !important;
+            padding: 0 !important;
             margin: 0 auto !important;
-            border: 4px solid #B8860B !important;
-            background-color: #FEFCF6 !important;
+            border: none !important;
+            background-color: transparent !important;
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
@@ -295,124 +295,50 @@ export const SertifikatTahfizModal: React.FC<SertifikatTahfizModalProps> = ({
         {/* Certificate Preview Body Container */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-200/80 flex justify-center">
           
-          {/* THE OFFICIAL CERTIFICATE SHEET (A4 LANDSCAPE: 297mm x 210mm) */}
+          {/* THE OFFICIAL CERTIFICATE SHEET (A4 LANDSCAPE: 297mm x 210mm - SESUAI TEMPLATE RESMI) */}
           <div
             id="official-certificate-sheet"
-            className="w-full max-w-[960px] bg-[#FEFCF6] p-3 sm:p-4 md:p-5 shadow-2xl text-slate-900 font-sans leading-tight relative border-4 border-[#B8860B] rounded-sm print:shadow-none box-border overflow-hidden flex flex-col justify-between"
+            className="w-full max-w-[960px] shadow-2xl relative print:shadow-none box-border overflow-hidden select-none rounded-sm bg-white"
             style={{
-              aspectRatio: '297 / 210',
+              aspectRatio: '1550 / 1106',
             }}
           >
-            {/* Golden Ornamental Double Border */}
-            <div className="absolute inset-2 border-2 border-[#DAA520] pointer-events-none rounded-xs"></div>
-            <div className="absolute inset-3.5 border border-[#006699] pointer-events-none rounded-xs"></div>
+            {/* Background Template Resmi dengan Bingkai Emas & Biru, Logo Al-Azhar & YPIA, Watermark Qur'an, Badge Cambridge, Stempel & Tanda Tangan Kepala Sekolah Andi Krisdianto, S.Pd.I */}
+            <img
+              id="certificate-official-bg"
+              src="/assets/cert_tahfiz_official.png"
+              alt="Sertifikat Tahfiz Juziyyah SMP Islam Al Azhar 9"
+              className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+            />
 
-            {/* Corner Stars */}
-            <div className="absolute top-4 left-4 w-3.5 h-3.5 bg-[#B8860B] rounded-xs flex items-center justify-center pointer-events-none">
-              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-            </div>
-            <div className="absolute top-4 right-4 w-3.5 h-3.5 bg-[#B8860B] rounded-xs flex items-center justify-center pointer-events-none">
-              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-            </div>
-            <div className="absolute bottom-4 left-4 w-3.5 h-3.5 bg-[#B8860B] rounded-xs flex items-center justify-center pointer-events-none">
-              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-            </div>
-            <div className="absolute bottom-4 right-4 w-3.5 h-3.5 bg-[#B8860B] rounded-xs flex items-center justify-center pointer-events-none">
-              <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-            </div>
-
-            {/* KOP SURAT RESMI (AL MUHAJIRIEN JAKAPERMAI WAQF FOUNDATION - AL AZHAR 9) — DIPERKECIL RAPI & PROPORSIONAL */}
-            <div className="relative pb-0.5 mb-1 sm:mb-1.5 w-full flex justify-center">
-              <img
-                id="certificate-official-kop"
-                src="/assets/aistudio/IMG_1417_e831045f.jpeg"
-                alt="Kop Resmi Al Muhajirien Jakapermai Waqf Foundation - Al Azhar 9 Islamic Junior High School"
-                className="w-full max-w-[360px] sm:max-w-[420px] md:max-w-[460px] max-h-[64px] sm:max-h-[74px] md:max-h-[82px] h-auto object-contain mix-blend-multiply"
-              />
-            </div>
-
-            {/* JUDUL SERTIFIKAT RESMI */}
-            <div className="text-center space-y-0.5 mb-1 sm:mb-1.5">
-              <h1 className="text-base sm:text-lg md:text-xl font-black text-emerald-900 uppercase tracking-wide leading-tight">
-                SYAHADAH TAHFIZ AL-QUR'AN
-              </h1>
-              <h3 className="text-[10px] sm:text-[11px] md:text-xs font-extrabold text-[#B8860B] uppercase tracking-wider">
-                SERTIFIKAT KELULUSAN HAFALAN TAHFIZ PER JUZ
-              </h3>
-              <p className="text-[8.5px] sm:text-[9.5px] text-slate-500 font-mono">
-                Nomor: {certData.certificateNumber}
-              </p>
-            </div>
-
-            {/* BADAN SERTIFIKAT */}
-            <div className="text-center space-y-0.5 sm:space-y-1 max-w-2xl mx-auto px-2">
-              <p className="text-[10px] sm:text-[11px] text-slate-700">
-                Direktorat Pendidikan SMP Islam Al Azhar 9 Bekasi menerangkan dengan sesungguhnya bahwa:
-              </p>
-
-              {/* Nama Santri */}
-              <div className="py-0">
-                <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 uppercase tracking-normal border-b-2 border-amber-400 inline-block px-3 pb-0.5">
+            {/* Lapisan Konten Dinamis (Nama Santri & Keterangan Juz) */}
+            <div className="absolute inset-0 pointer-events-none select-none">
+              {/* Nama Santri dalam Kaligrafi Kursif Emas Mewah Sesuai Dokumen Resmi */}
+              <div 
+                className="absolute left-0 right-0 px-6 text-center flex items-center justify-center -translate-y-1/2"
+                style={{ top: '49.2%' }}
+              >
+                <h2
+                  className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] print:text-[42pt] text-[#C59B27] font-normal tracking-wide leading-none"
+                  style={{
+                    fontFamily: "'Great Vibes', 'Alex Brush', cursive",
+                    textShadow: '0 1px 1px rgba(0,0,0,0.06)',
+                  }}
+                >
                   {student.name}
                 </h2>
-                <div className="text-[9.5px] sm:text-[10.5px] text-slate-600 font-semibold mt-0.5 space-x-2">
-                  <span>NISN: {student.nisn || '-'}</span>
-                  <span>•</span>
-                  <span>NIS: {student.nis || '-'}</span>
-                  <span>•</span>
-                  <span>Kelas: {student.className}</span>
-                </div>
               </div>
 
-              <p className="text-[9.5px] sm:text-[10.5px] text-slate-700">
-                Telah mengikuti Ujian Tasmi' Bil Ghaib dan dinyatakan memenuhi seluruh standar kompetensi tahfiz dengan predikat:
-              </p>
-
-              {/* KOTAK PENCAPAIAN JUZ */}
-              <div className="bg-gradient-to-r from-amber-50/80 via-emerald-50/50 to-amber-50/80 border border-amber-300 rounded-xl py-1 px-3 shadow-2xs max-w-xl mx-auto space-y-0.5">
-                <div className="text-xs sm:text-sm md:text-base font-black text-[#006699] uppercase tracking-tight flex items-center justify-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>LULUS MUTQIN: JUZ {certData.juzNumber} ({certData.juzName})</span>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                </div>
-                <p className="text-[9px] sm:text-[10px] text-slate-600 font-medium">
-                  {certData.surahRange} ({certData.totalSurah} Surah • {certData.totalAyat} Ayat)
+              {/* Keterangan Pelaksanaan Tasmi' Bil Ghaib Sekali Duduk */}
+              <div 
+                className="absolute left-0 right-0 px-8 text-center flex flex-col items-center justify-center -translate-y-1/2 space-y-1 sm:space-y-1.5 print:space-y-1"
+                style={{ top: '62.8%' }}
+              >
+                <p className="text-slate-800 font-sans text-xs sm:text-sm md:text-[15px] lg:text-[16px] print:text-[13pt] font-bold leading-tight max-w-2xl mx-auto">
+                  Selamat telah melaksanakan Tasmi' Al-Qur'an <span className="font-extrabold text-slate-900">Juz {selectedJuz}</span> dalam sekali duduk
                 </p>
-                <div className="flex items-center justify-center gap-2.5 pt-0.5 text-[9.5px] sm:text-[10.5px] font-bold text-amber-900">
-                  <span>Nilai Tasmi': <strong className="text-emerald-900 font-mono">{certData.score}</strong></span>
-                  <span>•</span>
-                  <span>Predikat: <strong className="text-emerald-900 uppercase">{certData.predicate}</strong></span>
-                  <span>•</span>
-                  <span className="bg-emerald-700 text-white px-2 py-0.2 rounded-full text-[8.5px] font-bold">MUTQIN</span>
-                </div>
-              </div>
-
-              {/* Doa / Harapan */}
-              <p className="text-[8.5px] sm:text-[9.5px] text-slate-500 italic max-w-lg mx-auto pt-0.5 leading-snug">
-                "Semoga hafalan Al-Qur'an yang telah diselesaikan senantiasa terjaga di dalam dada, menjadi syafa'at di yaumil akhir, serta berakhlak mulia dengan nilai-nilai Al-Qur'an."
-              </p>
-            </div>
-
-            {/* TANDA TANGAN RESMI KEPALA SEKOLAH (TUNGGAL, KANAN BAWAH — PAS DI DALAM BINGKAI EMAS) */}
-            <div className="mt-1 sm:mt-1.5 px-6 sm:px-10 flex justify-end text-xs text-slate-800">
-              <div className="text-center w-52 sm:w-60 space-y-0">
-                <p className="text-slate-600 text-[9.5px] sm:text-[10.5px]">
-                  Bekasi, {formatToIndonesianDate(certData.date, true)}
-                </p>
-                <p className="font-bold text-slate-800 text-[10px] sm:text-[11px]">
-                  Kepala SMP Islam Al Azhar 9 Bekasi
-                </p>
-                
-                {/* Space Tanda Tangan */}
-                <div className="h-8 sm:h-9 flex items-center justify-center">
-                  <span className="text-[8.5px] text-slate-300 italic">Tanda Tangan Digital</span>
-                </div>
-
-                <p className="font-bold text-slate-900 text-xs sm:text-sm border-b border-slate-700 inline-block px-1">
-                  {principalName}
-                </p>
-                <p className="text-[9px] sm:text-[9.5px] text-slate-500 font-medium mt-0.5">
-                  NIP. {principalNip}
+                <p className="text-slate-600 font-sans text-[10px] sm:text-xs md:text-[12.5px] lg:text-[13.5px] print:text-[10pt] font-medium leading-tight max-w-2xl mx-auto">
+                  Semoga penghargaan ini menjadi motivasi untuk menambah dan memelihara hafalan dengan baik.
                 </p>
               </div>
             </div>

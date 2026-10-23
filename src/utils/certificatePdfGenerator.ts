@@ -1,7 +1,5 @@
 import jsPDF from 'jspdf';
-import { Student, SchoolSettings, TahfizSurahRecord } from '../types';
-import { drawAlAzharLogo, drawYPIALogo } from './pdfGenerator';
-import { formatToIndonesianDate } from '../components/IndonesianDatePicker';
+import { Student, SchoolSettings } from '../types';
 
 export interface JuzCertificateData {
   juzNumber: number;
@@ -208,63 +206,28 @@ export function getJuzMetadata(juzNumber: number) {
 }
 
 /**
- * Mengambil data base64 dari kop surat resmi untuk rendering PDF
+ * Loads image element safely
  */
-async function getKopImageDataUrl(): Promise<string> {
-  if (typeof document !== 'undefined') {
-    const imgEl = document.getElementById('certificate-official-kop') as HTMLImageElement | null;
-    if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = imgEl.naturalWidth;
-        canvas.height = imgEl.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(imgEl, 0, 0);
-          return canvas.toDataURL('image/jpeg', 0.95);
-        }
-      } catch (e) {
-        console.warn('Canvas export kop error:', e);
-      }
-    }
-  }
-
-  if (typeof window !== 'undefined') {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL('image/jpeg', 0.95));
-            return;
-          }
-        } catch {
-          // ignore
-        }
-        resolve('/assets/aistudio/IMG_1417_e831045f.jpeg');
-      };
-      img.onerror = () => resolve('/assets/aistudio/IMG_1417_e831045f.jpeg');
-      img.src = '/assets/aistudio/IMG_1417_e831045f.jpeg';
-    });
-  }
-
-  return '/assets/aistudio/IMG_1417_e831045f.jpeg';
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+    img.src = src;
+  });
 }
 
 /**
- * Generate PDF Sertifikat Kelulusan Tahfiz Per Juz (Ukuran Kertas A4 Landscape)
+ * Generate PDF Sertifikat Kelulusan Tahfiz Per Juz Sesuai Format Resmi Sekolah
+ * Template background: /assets/cert_tahfiz_official.png (Kepala Sekolah: Andi Krisdianto, S.Pd.I)
+ * Ukuran Kertas: A4 Landscape (297mm x 210mm)
  */
 export async function generateCertificatePDF(
   student: Student,
   certData: JuzCertificateData,
   settings: SchoolSettings,
-  teacherName?: string
+  _teacherName?: string
 ) {
   // A4 Landscape: 297mm x 210mm
   const doc = new jsPDF({
@@ -276,219 +239,133 @@ export async function generateCertificatePDF(
   const pageWidth = 297;
   const pageHeight = 210;
 
-  // 1. BACKGROUND ELEGAN & ISLAMIC ORNAMENTAL BORDER
-  // Latar belakang gading lembut
-  doc.setFillColor(254, 252, 246);
-  doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
-  // Bingkai luar emas tebal
-  doc.setDrawColor(184, 134, 11); // Dark Goldenrod
-  doc.setLineWidth(1.8);
-  doc.rect(8, 8, pageWidth - 16, pageHeight - 16);
-
-  // Garis tipis aksen emas
-  doc.setDrawColor(218, 165, 32); // Goldenrod
-  doc.setLineWidth(0.5);
-  doc.rect(10.5, 10.5, pageWidth - 21, pageHeight - 21);
-
-  // Bingkai dalam hijau Al-Azhar
-  doc.setDrawColor(0, 102, 153); // Al-Azhar Blue/Teal
-  doc.setLineWidth(0.8);
-  doc.rect(12.5, 12.5, pageWidth - 25, pageHeight - 25);
-
-  // Ornamen Sudut (Corner Geometric Flourishes)
-  const drawCornerDeco = (cx: number, cy: number, signX: number, signY: number) => {
-    doc.setFillColor(184, 134, 11);
-    doc.rect(cx - 3 * signX, cy - 3 * signY, 6 * signX, 6 * signY, 'F');
-    doc.setFillColor(0, 102, 153);
-    doc.circle(cx, cy, 2, 'F');
-    doc.setFillColor(245, 195, 45);
-    doc.circle(cx, cy, 1, 'F');
-  };
-  drawCornerDeco(12.5, 12.5, 1, 1);
-  drawCornerDeco(pageWidth - 12.5, 12.5, -1, 1);
-  drawCornerDeco(12.5, pageHeight - 12.5, 1, -1);
-  drawCornerDeco(pageWidth - 12.5, pageHeight - 12.5, -1, -1);
-
-  // 2. KOP SURAT RESMI (AL MUHAJIRIEN JAKAPERMAI WAQF FOUNDATION - AL AZHAR 9)
-  // Rasio gambar kop asli: 1858 x 461 (~4.03) — Diperkecil proporsional agar rapi & luas
-  const kopWidth = 135;
-  const kopHeight = 33.5;
-  const kopX = (pageWidth - kopWidth) / 2;
-  const kopY = 14;
-
-  let kopSuccess = false;
   try {
-    const kopData = await getKopImageDataUrl();
-    if (kopData) {
-      doc.addImage(kopData, 'JPEG', kopX, kopY, kopWidth, kopHeight);
-      kopSuccess = true;
+    // Siapkan font cursive Google Font jika didukung
+    if (typeof document !== 'undefined' && document.fonts) {
+      try {
+        await Promise.allSettled([
+          document.fonts.load("bold 72px 'Great Vibes'"),
+          document.fonts.load("bold 72px 'Alex Brush'"),
+        ]);
+      } catch {
+        // Abaikan jika offline / timeout
+      }
     }
-  } catch (err) {
-    console.warn('Gagal memuat gambar kop resmi di PDF:', err);
-  }
 
-  if (!kopSuccess) {
-    // Fallback kop teks resmi Al Muhajirien & Al Azhar 9
+    // Buat canvas off-screen dengan resolusi tinggi (1550 x 1106)
+    const canvas = document.createElement('canvas');
+    canvas.width = 1550;
+    canvas.height = 1106;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+      throw new Error('Canvas 2D context tidak tersedia');
+    }
+
+    // 1. Gambar Template Resmi Sekolah
+    // Template ini sudah memuat logo SMP Al Azhar & YPIA, ornamen ribbon navy & emas,
+    // judul SERTIFIKAT TAHFIZ JUZIYYAH, logo Cambridge, stempel resmi, tanda tangan,
+    // dan nama Kepala Sekolah: Andi Krisdianto, S.Pd.I
+    const bgImg = await loadImage('/assets/cert_tahfiz_official.png');
+    ctx.drawImage(bgImg, 0, 0, 1550, 1106);
+
+    const centerX = 1550 / 2;
+
+    // 2. Render Nama Santri dalam Kaligrafi Emas Mewah
+    // Sesuaikan ukuran font jika nama sangat panjang agar tetap rapi & proporsional
+    const nameLength = student.name.length;
+    let fontSize = 72;
+    if (nameLength > 35) {
+      fontSize = 54;
+    } else if (nameLength > 25) {
+      fontSize = 62;
+    }
+
+    ctx.save();
+    ctx.font = `italic ${fontSize}px 'Great Vibes', 'Alex Brush', cursive`;
+    ctx.fillStyle = '#C59B27';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.shadowBlur = 2;
+    ctx.fillText(student.name, centerX, 545);
+    ctx.restore();
+
+    // 3. Render Pernyataan Tasmi' Bil Ghaib
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Baris 1: Selamat telah melaksanakan Tasmi' Al-Qur'an Juz X dalam sekali duduk
+    ctx.font = "bold 23px 'Plus Jakarta Sans', 'Arial', sans-serif";
+    ctx.fillStyle = '#1e293b';
+    ctx.fillText(
+      `Selamat telah melaksanakan Tasmi' Al-Qur'an Juz ${certData.juzNumber} dalam sekali duduk`,
+      centerX,
+      675
+    );
+
+    // Baris 2: Semoga penghargaan ini menjadi motivasi untuk menambah dan memelihara hafalan dengan baik.
+    ctx.font = "normal 18px 'Plus Jakarta Sans', 'Arial', sans-serif";
+    ctx.fillStyle = '#475569';
+    ctx.fillText(
+      'Semoga penghargaan ini menjadi motivasi untuk menambah dan memelihara hafalan dengan baik.',
+      centerX,
+      712
+    );
+    ctx.restore();
+
+    // Export canvas ke JPEG resolusi tinggi
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+    // Tempelkan gambar ke dokumen PDF A4 Landscape tepat 297mm x 210mm
+    doc.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+  } catch (err) {
+    console.error('Canvas render error, fallback ke jsPDF direct:', err);
+
+    // Fallback: langsung embed gambar background + draw text
+    try {
+      doc.addImage('/assets/cert_tahfiz_official.png', 'PNG', 0, 0, pageWidth, pageHeight);
+    } catch {
+      // background solid jika gambar gagal
+      doc.setFillColor(254, 252, 246);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(197, 155, 39); // Emas #C59B27
+    doc.text(student.name, pageWidth / 2, 105, { align: 'center' });
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.setTextColor(0, 90, 54);
-    doc.text('AL MUHAJIRIEN JAKAPERMAI WAQF FOUNDATION', pageWidth / 2, 18, { align: 'center' });
+    doc.setTextColor(30, 41, 59);
+    doc.text(
+      `Selamat telah melaksanakan Tasmi' Al-Qur'an Juz ${certData.juzNumber} dalam sekali duduk`,
+      pageWidth / 2,
+      128,
+      { align: 'center' }
+    );
 
-    doc.setFontSize(8);
-    doc.setTextColor(0, 102, 153);
-    doc.text('MANAGE', pageWidth / 2, 22, { align: 'center' });
-
-    doc.setFontSize(12);
-    doc.setTextColor(0, 90, 54);
-    doc.text('AL AZHAR 9 ISLAMIC JUNIOR HIGH SCHOOL', pageWidth / 2, 27, { align: 'center' });
-
-    doc.setFontSize(7);
-    doc.setTextColor(0, 102, 153);
-    doc.text('NPSN : 60728504  “A” ACCREDITED  NSS : 204022501131', pageWidth / 2, 31, { align: 'center' });
-
-    doc.setFontSize(6.5);
-    doc.setTextColor(40, 50, 45);
-    doc.text('Jl. Kemang Pratama Raya - Kemang Pratama, Bekasi 17116', pageWidth / 2, 34.5, { align: 'center' });
-    doc.text('Phone Number. 021-82421942   website : https://smpia9.sch.id.   Email : info@smpia9.sch.id', pageWidth / 2, 37.5, { align: 'center' });
-
-    // Garis Ganda Hijau
-    doc.setDrawColor(0, 90, 54);
-    doc.setLineWidth(0.3);
-    doc.line(26, 40, pageWidth - 26, 40);
-    doc.setLineWidth(0.9);
-    doc.line(26, 41.5, pageWidth - 26, 41.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(
+      'Semoga penghargaan ini menjadi motivasi untuk menambah dan memelihara hafalan dengan baik.',
+      pageWidth / 2,
+      135,
+      { align: 'center' }
+    );
   }
 
-  // 3. JUDUL SERTIFIKAT & NOMOR
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(15, 81, 50); // Emerald Green
-  doc.text('SYAHADAH TAHFIZ AL-QUR\'AN', pageWidth / 2, 53.5, { align: 'center' });
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(184, 134, 11);
-  doc.text('SERTIFIKAT KELULUSAN HAFALAN TAHFIZ PER JUZ', pageWidth / 2, 58, { align: 'center' });
-
-  // Nomor Sertifikat Resmi
-  const certNumber = certData.certificateNumber || `09/TAHFIZ/SMPIA-9/J.${certData.juzNumber}/${new Date().getFullYear()}`;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Nomor: ${certNumber}`, pageWidth / 2, 62, { align: 'center' });
-
-  // 4. BADAN SERTIFIKAT
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(51, 65, 85);
-  doc.text('Direktorat Pendidikan SMP Islam Al Azhar 9 Bekasi menerangkan dengan sesungguhnya bahwa:', pageWidth / 2, 68.5, { align: 'center' });
-
-  // Nama Siswa (Elegan & Menonjol)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(17);
-  doc.setTextColor(15, 23, 42); // Slate 900
-  doc.text(student.name.toUpperCase(), pageWidth / 2, 76.5, { align: 'center' });
-
-  // Garis bawah emas di bawah nama
-  const nameWidth = doc.getTextWidth(student.name.toUpperCase());
-  doc.setDrawColor(218, 165, 32);
-  doc.setLineWidth(0.6);
-  doc.line(pageWidth / 2 - nameWidth / 2 - 4, 78.5, pageWidth / 2 + nameWidth / 2 + 4, 78.5);
-
-  // Identitas Siswa
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(71, 85, 105);
-  const studentMetaText = `NISN: ${student.nisn || '-'}   •   NIS: ${student.nis || '-'}   •   Kelas: ${student.className}`;
-  doc.text(studentMetaText, pageWidth / 2, 83.5, { align: 'center' });
-
-  // Pernyataan Kelulusan
-  doc.text('Telah mengikuti Ujian Tasmi\' Bil Ghaib dan dinyatakan memenuhi standar kompetensi tahfiz dengan predikat:', pageWidth / 2, 89, { align: 'center' });
-
-  // BADGE PENCAPAIAN JUZ & PREDIKAT
-  const boxWidth = 216;
-  const boxHeight = 23;
-  const boxX = (pageWidth - boxWidth) / 2;
-  const boxY = 92.5;
-
-  // Background box pencapaian
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(boxX, boxY, boxWidth, boxHeight, 3, 3, 'F');
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(boxX, boxY, boxWidth, boxHeight, 3, 3, 'S');
-
-  // Judul Juz
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(0, 102, 153);
-  const juzFullTitle = `LULUS MUTQIN: JUZ ${certData.juzNumber} (${certData.juzName.toUpperCase()})`;
-  doc.text(juzFullTitle, pageWidth / 2, boxY + 7, { align: 'center' });
-
-  // Rincian Cakupan Surat
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  const rangeInfo = `${certData.surahRange} (${certData.totalSurah} Surah • ${certData.totalAyat} Ayat)`;
-  doc.text(rangeInfo, pageWidth / 2, boxY + 12.5, { align: 'center' });
-
-  // Skor dan Predikat
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(184, 134, 11);
-  const scoreInfo = `Nilai Tasmi': ${certData.score}   •   Predikat: ${certData.predicate.toUpperCase()}   •   Status: MUTQIN`;
-  doc.text(scoreInfo, pageWidth / 2, boxY + 18.5, { align: 'center' });
-
-  // Do'a / Harapan
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  const doaText = '"Semoga hafalan Al-Qur\'an yang telah diselesaikan senantiasa terjaga di dalam dada, menjadi syafa\'at di yaumil akhir, serta berakhlak mulia dengan nilai-nilai Al-Qur\'an."';
-  doc.text(doaText, pageWidth / 2, 121.5, { align: 'center' });
-
-  // 5. TANGGAL & TANDA TANGAN RESMI KEPALA SEKOLAH (TUNGGAL, KANAN BAWAH)
-  const footerY = 129;
-  const colRightX = pageWidth - 65;
-
-  // Tanggal di atas tanda tangan Kepala Sekolah
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(51, 65, 85);
-  const certDateStr = certData.date ? formatToIndonesianDate(certData.date, true) : '20 Oktober 2026';
-  doc.text(`Bekasi, ${certDateStr}`, colRightX, footerY, { align: 'center' });
-
-  // Jabatan: Kepala Sekolah
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Kepala SMP Islam Al Azhar 9 Bekasi', colRightX, footerY + 5, { align: 'center' });
-
-  // Nama Kepala Sekolah — Andi Krisdianto, S.Pd.I
-  const principalName = settings.principalName || 'Andi Krisdianto, S.Pd.I';
-  const principalNip = settings.principalNip || '19760812 200212 1 003';
-  const nameSignY = footerY + 22;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(principalName, colRightX, nameSignY, { align: 'center' });
-  const princWidth = doc.getTextWidth(principalName);
-  doc.setDrawColor(71, 85, 105);
-  doc.setLineWidth(0.4);
-  doc.line(colRightX - princWidth / 2, nameSignY + 1.2, colRightX + princWidth / 2, nameSignY + 1.2);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`NIP. ${principalNip}`, colRightX, nameSignY + 4.5, { align: 'center' });
-
-  // GARANSI STANDAR KERTAS A4: Sertifikat Harus Tepat 1 Lembar Saja!
+  // Jaminan A4: Tepat 1 Halaman
   while (doc.getNumberOfPages() > 1) {
     doc.deletePage(doc.getNumberOfPages());
   }
 
-  // Simpan file sertifikat PDF
+  // Unduh sertifikat PDF
   const safeName = student.name.replace(/[^a-zA-Z0-9]/g, '_');
   const filename = `Sertifikat_Tahfiz_Juz_${certData.juzNumber}_${safeName}.pdf`;
   doc.save(filename);
